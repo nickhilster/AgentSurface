@@ -54,13 +54,24 @@ async function main(): Promise<void> {
       for (const p of result.generated) console.log(`  - ${p}`);
       if (result.skipped.length > 0) {
         console.log(`Skipped ${result.skipped.length}:`);
-        for (const s of result.skipped) console.log(`  - ${s.path}: ${s.reason}`);
+        for (const s of result.skipped) console.log(`  - ${s.path}: ${s.reason}${s.fatal ? " (fatal)" : ""}`);
+      }
+      if (result.llmsTxt.conflict) {
+        console.log(`llms.txt was not written: a pre-existing, non-AgentSurface-owned file was found and left untouched.`);
+      } else if (result.llmsTxt.written) {
+        console.log(`llms.txt written.`);
       }
       break;
     }
     case "validate": {
-      const result = await runValidate({ repoRoot, serverBaseUrl: flags.server });
+      const serverBaseUrl = flags.server;
+      const acknowledgeNoServer = flags["no-drift-check"] === "true";
+      const result = await runValidate({ repoRoot, serverBaseUrl, acknowledgeNoServer });
       console.log(`Checked ${result.checkedGeneratedFiles} generated file(s), ${result.checkedDiscoveryLinks} discovery link(s).`);
+      if (result.unchecked.length > 0) {
+        console.log(`${result.unchecked.length} check(s) could not be completed:`);
+        for (const u of result.unchecked) console.log(`  [${u.check}] ${u.path}: ${u.reason}`);
+      }
       if (result.failures.length === 0) {
         console.log("No validation failures.");
       } else {
@@ -77,7 +88,7 @@ async function main(): Promise<void> {
     }
     default: {
       console.error(`Unknown or missing command: "${command}"`);
-      console.error("Usage: agentsurface <init|inspect|generate|validate|diff> [--repo <path>] [--name <name>] [--hostnames a,b]");
+      console.error("Usage: agentsurface <init|inspect|generate|validate|diff> [--repo <path>] [--name <name>] [--hostnames a,b] [--server <url>] [--no-drift-check]");
       process.exitCode = 1;
     }
   }

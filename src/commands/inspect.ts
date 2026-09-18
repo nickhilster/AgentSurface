@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { NextAppRouterAdapter } from "../adapters/nextAppRouter.js";
+import { writeModelMeta } from "../lib/modelVersion.js";
 import type { CanonicalSiteModel, FrameworkAdapter } from "../types/model.js";
 
 export interface InspectOptions {
@@ -70,6 +71,7 @@ function writeModel(repoRoot: string, model: CanonicalSiteModel): void {
   const modelDir = join(repoRoot, ".agentsurface", "model");
   mkdirSync(modelDir, { recursive: true });
 
+  writeModelMeta(repoRoot, model);
   writeFileSync(join(modelDir, "site.json"), JSON.stringify(model.site, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "routes.json"), JSON.stringify(model.routes, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "entities.json"), JSON.stringify(model.entities, null, 2) + "\n", "utf-8");

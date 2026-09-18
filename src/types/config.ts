@@ -10,7 +10,11 @@ export interface AgentSurfaceConfig {
     exclude: string[];
   };
   output: {
-    /** Where generated Markdown/manifest files are written, relative to repo root. */
+    /**
+     * Where AgentSurface writes artifacts into the target repo's own static/public
+     * output directory (e.g. llms.txt), relative to repo root. Honoured by generate/
+     * validate; does not affect .agentsurface/, which AgentSurface owns outright.
+     */
     dir: string;
   };
   ownership: {
@@ -32,7 +36,7 @@ export const DEFAULT_CONFIG: AgentSurfaceConfig = {
     exclude: [],
   },
   output: {
-    dir: ".",
+    dir: "public",
   },
   ownership: {
     overwriteHumanOwned: false,
