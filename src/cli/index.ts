@@ -48,7 +48,16 @@ async function main(): Promise<void> {
       break;
     }
     case "generate": {
-      const serverBaseUrl = flags.server ?? "http://localhost:3000";
+      // No framework-specific default (e.g. Next.js's localhost:3000): generation is
+      // render-based and needs a real running instance, which is repo-specific. Adapters
+      // will eventually declare this (renderRecipe, plan §2.2/§4.1); until then it must
+      // be explicit rather than silently assumed.
+      if (!flags.server) {
+        console.error(`"generate" requires --server <url>, the base URL of a running instance of the target site.`);
+        process.exitCode = 1;
+        break;
+      }
+      const serverBaseUrl = flags.server;
       const result = await runGenerate({ repoRoot, serverBaseUrl });
       console.log(`Generated ${result.generated.length} page(s):`);
       for (const p of result.generated) console.log(`  - ${p}`);

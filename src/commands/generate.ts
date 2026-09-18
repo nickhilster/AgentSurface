@@ -147,15 +147,21 @@ function generateLlmsTxt(
     lines.push(`- [${label}](${target})`);
   }
 
-  // Only list capabilities that carry a real, source-derived backing implementation —
-  // never a literal route/URL invented for one specific site. See §1.1.
-  const listable = capabilities.filter((c) => c.backingImplementation !== null);
+  // Only list capabilities that (a) carry a real, source-derived backing implementation
+  // — never a literal route/URL invented for one specific site — and (b) are not
+  // auth-gated. authRequired capabilities are private-by-classification; publishing them
+  // in a public discovery file would leak their existence, against docs/SPEC.md's
+  // "Generated discovery must not expose otherwise undiscoverable private resources"
+  // and "Authenticated/private routes are excluded by default." See §1.1.
+  const listable = capabilities.filter((c) => c.backingImplementation !== null && !c.authRequired);
   if (listable.length > 0) {
     lines.push("");
     lines.push("## Capabilities");
     lines.push("");
     for (const c of listable) {
-      lines.push(`- [${c.name}](${c.backingImplementation}): ${c.description}`);
+      // Link by c.name (the route path, a real URL) — c.backingImplementation is
+      // provenance (a source file path in the repo), never a link target.
+      lines.push(`- [${c.name}](${c.name}): ${c.description}`);
     }
   }
   lines.push("");

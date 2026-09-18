@@ -92,27 +92,69 @@ describe("runGenerate", () => {
     expect(llmsTxt).not.toContain("## Structured data");
   });
 
-  it("derives structured-data entries from real CapabilityRecords when present", async () => {
-    setUpConfig();
-    const capability: CapabilityRecord = {
-      name: "Site search",
-      description: "Full-text search API",
+  // Fixture shape matches exactly what NextAppRouterAdapter.inspectCapabilities emits
+  // (src/adapters/nextAppRouter.ts): `name` is the route path (a real URL), not a human
+  // label; `backingImplementation` is a source *file path*, not a URL; `authRequired` is
+  // derived from the first path segment. A fixture that diverges from this shape can
+  // pass while the real adapter's output is broken — see the review that caught this.
+  function apiCapability(overrides: Partial<CapabilityRecord> = {}): CapabilityRecord {
+    return {
+      name: "/api/values",
+      description: "API route at /api/values",
       kind: "readable",
-      backingImplementation: "/api/search",
+      backingImplementation: "app/api/values/route.ts",
       authRequired: false,
       sideEffects: false,
       constraints: [],
       provenance: [],
       confidence: 1.0,
+      ...overrides,
     };
-    setUpModel([publicRoute("/about")], [capability]);
+  }
+
+  it("derives structured-data entries from real CapabilityRecords when present", async () => {
+    setUpConfig();
+    setUpModel([publicRoute("/about")], [apiCapability()]);
     mockFetchOk(PAGE_HTML);
 
     await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
 
     const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
-    expect(llmsTxt).toContain("/api/search");
-    expect(llmsTxt).toContain("Site search");
+    expect(llmsTxt).toContain("/api/values");
+  });
+
+  it("links a capability by its route path (c.name), never by its source file path (c.backingImplementation)", async () => {
+    setUpConfig();
+    setUpModel([publicRoute("/about")], [apiCapability()]);
+    mockFetchOk(PAGE_HTML);
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(llmsTxt).toContain("[/api/values](/api/values)");
+    expect(llmsTxt).not.toContain("app/api/values/route.ts");
+  });
+
+  it("does not publish an authRequired capability in the public llms.txt", async () => {
+    setUpConfig();
+    // Matches the real adapter's shape for a genuinely private endpoint, e.g.
+    // app/api/admin/login/route.ts on the dogfood target: authRequired: true because
+    // segments[0] === "admin".
+    const adminLogin = apiCapability({
+      name: "/api/admin/login",
+      description: "API route at /api/admin/login",
+      backingImplementation: "app/api/admin/login/route.ts",
+      authRequired: true,
+      constraints: ["requires admin session cookie (see lib/adminAuth)"],
+    });
+    setUpModel([publicRoute("/about")], [adminLogin]);
+    mockFetchOk(PAGE_HTML);
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(llmsTxt).not.toContain("/api/admin/login");
+    expect(llmsTxt).not.toContain("## Capabilities");
   });
 
   // --- §1.2: llms.txt honours ownership ---
