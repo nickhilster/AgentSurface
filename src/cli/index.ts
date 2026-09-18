@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+import { runInit } from "../commands/init.js";
+import { runInspect } from "../commands/inspect.js";
+import { runGenerate } from "../commands/generate.js";
+import { runValidate } from "../commands/validate.js";
+
+function parseArgs(argv: string[]): { command: string; flags: Record<string, string> } {
+  const [command, ...rest] = argv;
+  const flags: Record<string, string> = {};
+  for (let i = 0; i < rest.length; i++) {
+    const arg = rest[i];
+    if (arg.startsWith("--")) {
+      const key = arg.slice(2);
+      const next = rest[i + 1];
+      if (next && !next.startsWith("--")) {
+        flags[key] = next;
+        i++;
+      } else {
+        flags[key] = "true";
+      }
+    }
+  }
+  return { command: command ?? "", flags };
+}
+
+async function main(): Promise<void> {
+  const { command, flags } = parseArgs(process.argv.slice(2));
+  const repoRoot = flags.repo ?? process.cwd();
+
+  switch (command) {
+    case "init": {
+      const hostnames = flags.hostnames ? flags.hostnames.split(",") : [];
+      const result = runInit({ repoRoot, siteName: flags.name, hostnames });
+      console.log(`Created ${result.path}`);
+      break;
+    }
+    case "inspect": {
+      const model = await runInspect({ repoRoot });
+      console.log(`Inspected ${repoRoot}`);
+      console.log(`Framework: ${model.site.framework} (confidence ${model.site.frameworkConfidence})`);
+      console.log(`Routes found: ${model.routes.length}`);
+      console.log(`Capabilities found: ${model.capabilities.length}`);
+      if (model.unknowns.length > 0) {
+        console.log(`Unknowns (${model.unknowns.length}):`);
+        for (const u of model.unknowns) console.log(`  - ${u}`);
+      }
+      console.log(`Model written to ${repoRoot}/.agentsurface/model/`);
+      break;
+    }
+    case "generate": {
+      const serverBaseUrl = flags.server ?? "http://localhost:3000";
+      const result = await runGenerate({ repoRoot, serverBaseUrl });
+      console.log(`Generated ${result.generated.length} page(s):`);
+      for (const p of result.generated) console.log(`  - ${p}`);
+      if (result.skipped.length > 0) {
+        console.log(`Skipped ${result.skipped.length}:`);
+        for (const s of result.skipped) console.log(`  - ${s.path}: ${s.reason}`);
+      }
+      break;
+    }
+    case "validate": {
+      const result = await runValidate({ repoRoot, serverBaseUrl: flags.server });
+      console.log(`Checked ${result.checkedGeneratedFiles} generated file(s), ${result.checkedDiscoveryLinks} discovery link(s).`);
+      if (result.failures.length === 0) {
+        console.log("No validation failures.");
+      } else {
+        console.log(`${result.failures.length} failure(s):`);
+        for (const f of result.failures) console.log(`  [${f.check}] ${f.path}: ${f.message}`);
+        process.exitCode = 1;
+      }
+      break;
+    }
+    case "diff": {
+      console.error(`"${command}" is not implemented in this slice yet.`);
+      process.exitCode = 1;
+      break;
+    }
+    default: {
+      console.error(`Unknown or missing command: "${command}"`);
+      console.error("Usage: agentsurface <init|inspect|generate|validate|diff> [--repo <path>] [--name <name>] [--hostnames a,b]");
+      process.exitCode = 1;
+    }
+  }
+}
+
+main().catch((err) => {
+  console.error(err instanceof Error ? err.message : err);
+  process.exitCode = 1;
+});
