@@ -839,16 +839,45 @@ Phase 1 → library extraction (§7.2) → npm publish (§7.1)
 
 **Phase 0 — correctness debt (§1).** No new capability. Exit criteria in §1.9.
 
-**Phase 1 — adapter contract + model (v0.2).** New contract (§2.2), Next.js adapter
-refactored onto it, model changes (§3.1, §3.5) with the multi-app decision made (§3.2),
-per-route boundary override (§3.4), Turndown swap with links and images preserved (§4.2),
-structured validation report (§6.2), runtime reachability validator (§6.1), library
-extraction and npm publish (§7.1–7.2).
-*Exit:* the Next.js adapter passes the core conformance suite; reachability verification
-reproduces the two HTTP-only bugs from the dogfood report as automated test failures when
-deliberately reintroduced; `npx agentsurface` works end-to-end on a fresh clone of the
-dogfood target with no repo-local code; re-running the original dogfood produces the same
-model modulo the schema additions.
+**Phase 1 — adapter contract + model (v0.2).** Reordered after the Phase 0 review cycle
+(see "Phase 1 reordering note" below): **structured validation report (§6.2) and the
+runtime reachability validator (§6.1) land first**, ahead of the adapter contract work —
+then new contract (§2.2), Next.js adapter refactored onto it, model changes (§3.1, §3.5)
+with the multi-app decision made (§3.2), per-route boundary override (§3.4), Turndown
+swap with links and images preserved (§4.2), library extraction and npm publish
+(§7.1–7.2).
+
+§6.1's acceptance cases must include, at minimum:
+1. every `.md` alternate advertised in `llms.txt` returns 200 and matches the generated
+   file (catches a dead/unwritten alternate — the failure mode this review cycle's item 5
+   named: `generate` against a partially-reachable server produces partial output with no
+   error, and an `llms.txt` advertising alternates that were never written);
+2. every route classified non-public has no reachable alternate;
+3. every deliberately-skipped route (no boundary, dynamic) 404s at its `.md` path rather
+   than fabricating one;
+4. a known-nonexistent path still reaches the site's own 404 handling.
+Item 5 is not patched separately in `generate` — it is this validator's first acceptance
+case, so the check is written once rather than twice.
+
+*Exit:* the reachability validator reproduces the two HTTP-only bugs from the original
+dogfood report (the `[lang]`/catch-all collision, the `_`-prefixed folder) as automated
+test failures when deliberately reintroduced, and separately catches a deliberately
+unwritten-but-advertised alternate (item 5's case); the Next.js adapter passes the core
+conformance suite; `npx agentsurface` works end-to-end on a fresh clone of the dogfood
+target with no repo-local code; re-running the original dogfood produces the same model
+modulo the schema additions.
+
+### Phase 1 reordering note (post Phase-0-review)
+
+The original ordering put §6.1 in the middle of Phase 1's item list. A review of the
+Phase 0 commits found three defects in one function (`generateLlmsTxt`) across two review
+cycles — a dead link, a leaked private-capability record, and a leaked mutating-endpoint
+record — and all three share one shape: **a generated artifact claimed something that did
+not hold when an agent would actually have requested it.** That is precisely what §6.1
+checks for, mechanically, on every future adapter. Doing the adapter-contract refactor
+(§2.2) before that validator exists means the refactor lands against a fixture suite that
+has already been shown, twice, to pass while real output was wrong. Doing it after means
+the refactor lands against a net. §6.1 now leads Phase 1.
 
 **Phase 2 — second adapter (v0.3).** **Astro** first (§0.6), chosen because its typed
 Content Collections exercise `enumerateRoutes()`'s introspection path rather than

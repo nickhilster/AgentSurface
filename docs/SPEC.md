@@ -201,6 +201,37 @@ AgentSurface may generate or configure:
 
 Discovery must point to outputs that actually exist.
 
+### What a capability projection into `llms.txt` may include
+
+`llms.txt` is a discovery index for agent-*readable* content. It must never be, or read
+as, an invitation to invoke agent-*operable* actions — that is a separate, explicitly
+higher-scrutiny surface (see "Readable vs operable" in `docs/ARCHITECTURE.md`).
+
+Concretely, a `CapabilityRecord` may only be projected into `llms.txt` when **all** of the
+following hold:
+
+- it carries a real, source-derived `backingImplementation` (never a literal route/URL
+  invented for one specific site);
+- `authRequired` is `false` — an auth-gated capability is private-by-classification, and
+  listing it in a public file leaks its existence;
+- `kind === "readable"` **and** `sideEffects === false`. A public, unauthenticated
+  endpoint that mutates state (e.g. a POST-only API) is still agent-operable territory by
+  virtue of what it *does*, regardless of who can reach it. `kind: "readable"` alone does
+  not capture this — the generator inspection pass in v0.1 only ever emits
+  `kind: "readable"` (see `docs/ARCHITECTURE.md`'s adapter boundary), so `sideEffects`
+  is the field that actually distinguishes "safe to list as structured data" from
+  "reads as callable."
+
+The section heading for this projection must not read as an action menu. Use
+`## Structured data`, not `## Capabilities` — a heading is part of what an agent reads,
+and "Capabilities" invites exactly the misreading this section exists to prevent.
+
+This was learned the hard way: a `generate.ts` revision briefly published every
+capability with a non-null `backingImplementation` regardless of `authRequired` or
+`sideEffects`, publishing 18 authenticated admin endpoints and several public mutation
+endpoints (chat, lead capture, an internal cron trigger) in a live dogfood target's public
+`llms.txt`. See `docs/dogfood-reports/2026-09-18-teambotics-website-phase0-rerun.md`.
+
 ## Repo operating outputs
 
 AgentSurface may generate a repo-local operating contract based on a universal template plus repo-specific facts.

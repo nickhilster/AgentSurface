@@ -154,6 +154,42 @@ describe("runGenerate", () => {
 
     const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
     expect(llmsTxt).not.toContain("/api/admin/login");
+    expect(llmsTxt).not.toContain("## Structured data");
+  });
+
+  it("does not publish a side-effecting (mutating) capability, even a public one", async () => {
+    setUpConfig();
+    // Matches the real adapter's shape for a public, POST-only mutation endpoint on the
+    // dogfood target, e.g. app/api/chat/route.ts: authRequired: false (not under /admin),
+    // sideEffects: true (a POST handler exists). llms.txt is a discovery index for
+    // agent-readable content, not an invitation to call an endpoint; a mutating API must
+    // not appear here regardless of auth, per OPERATE.md's readable/operable separation.
+    const chatEndpoint = apiCapability({
+      name: "/api/chat",
+      description: "API route at /api/chat",
+      backingImplementation: "app/api/chat/route.ts",
+      authRequired: false,
+      sideEffects: true,
+    });
+    setUpModel([publicRoute("/about")], [chatEndpoint]);
+    mockFetchOk(PAGE_HTML);
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(llmsTxt).not.toContain("/api/chat");
+    expect(llmsTxt).not.toContain("## Structured data");
+  });
+
+  it("uses the 'Structured data' heading, not 'Capabilities', for the readable-only projection", async () => {
+    setUpConfig();
+    setUpModel([publicRoute("/about")], [apiCapability()]);
+    mockFetchOk(PAGE_HTML);
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(llmsTxt).toContain("## Structured data");
     expect(llmsTxt).not.toContain("## Capabilities");
   });
 

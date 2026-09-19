@@ -147,16 +147,32 @@ function generateLlmsTxt(
     lines.push(`- [${label}](${target})`);
   }
 
-  // Only list capabilities that (a) carry a real, source-derived backing implementation
-  // — never a literal route/URL invented for one specific site — and (b) are not
-  // auth-gated. authRequired capabilities are private-by-classification; publishing them
-  // in a public discovery file would leak their existence, against docs/SPEC.md's
-  // "Generated discovery must not expose otherwise undiscoverable private resources"
-  // and "Authenticated/private routes are excluded by default." See §1.1.
-  const listable = capabilities.filter((c) => c.backingImplementation !== null && !c.authRequired);
+  // Only list capabilities that are:
+  //   (a) backed by a real, source-derived implementation — never a literal route/URL
+  //       invented for one specific site;
+  //   (b) not auth-gated — authRequired capabilities are private-by-classification, and
+  //       publishing them would leak their existence, against docs/SPEC.md's "Generated
+  //       discovery must not expose otherwise undiscoverable private resources";
+  //   (c) not side-effecting — llms.txt is a discovery index for agent-readable content,
+  //       never an invitation to call an endpoint. A mutating (sideEffects: true) API,
+  //       even a public one, is agent-operable territory, and OPERATE.md requires
+  //       readable and operable to stay separate. A public GET-only endpoint may still
+  //       read as "callable" to an agent; kind === "readable" alone does not distinguish
+  //       that, hence the separate sideEffects check. See docs/SPEC.md's discovery
+  //       section for the recorded decision and rationale.
+  // Every one of these checks exists because a prior version of this function shipped
+  // without it and leaked or mis-published something real on the dogfood target — see
+  // docs/dogfood-reports/2026-09-18-teambotics-website-phase0-rerun.md. Do not add a new
+  // field to the projection below without adding the corresponding check here first.
+  const listable = capabilities.filter(
+    (c) => c.backingImplementation !== null && !c.authRequired && c.kind === "readable" && !c.sideEffects
+  );
   if (listable.length > 0) {
     lines.push("");
-    lines.push("## Capabilities");
+    // Not "## Capabilities": that heading reads as an invitation to call something.
+    // This is a discovery index of structured data, not an action menu — see the v0.1
+    // heading this restores, and docs/SPEC.md's discovery section.
+    lines.push("## Structured data");
     lines.push("");
     for (const c of listable) {
       // Link by c.name (the route path, a real URL) — c.backingImplementation is
