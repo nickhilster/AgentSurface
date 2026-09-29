@@ -90,9 +90,9 @@
 - Use `public` as the public output root and `public/agentsurface/pages` for Markdown.
 - Start the Vite dev server and pass its base URL to AgentSurface generation and validation.
 
-- [ ] Inspect the generated model and confirm route inventory against static HTML and `src/App.tsx`; correct only deterministic adapter/config issues.
-- [ ] Generate outputs and confirm gated pages have no Markdown body, React-only pages use HTML URLs, and all outputs carry AgentSurface ownership metadata.
-- [ ] Run AgentSurface validation and resolve every route, discovery, ownership, or drift error.
+- [x] Inspect the generated model and confirm route inventory against static HTML and `src/App.tsx`; correct only deterministic adapter/config issues.
+- [x] Generate outputs and confirm gated pages have no Markdown body, React-only pages use HTML URLs, and all outputs carry AgentSurface ownership metadata.
+- [x] Run AgentSurface validation and resolve every route, discovery, ownership, or drift error.
 
 ### Task 4: Align Boardy4Age guidance and channel presentation
 
@@ -111,19 +111,17 @@
 - Show the dated picker list observed on 2026-09-28: iMessage, WhatsApp, X, LinkedIn, Email. Keep a link to the live picker.
 - Pair each named service logo with visible text; use neutral accessible icons for generic email/text/phone options.
 
-- [ ] Update the page, README, and protocol so they agree on connected-email and copy-ready paths, required brief information, privacy warning, and the user-initiated boundary.
-- [ ] Add accessible local service marks to the channel cards while retaining all text labels and responsive layout.
-- [ ] Preserve the collapsed agent-instructions section and the existing two-mode explanation.
-- [ ] Confirm `.playwright-mcp/` remains untracked and untouched after the fast-forward and edits.
+- [x] Update the page, README, and protocol so they agree on connected-email and copy-ready paths, required brief information, privacy warning, and the user-initiated boundary.
+- [x] Add accessible local service marks to the channel cards while retaining all text labels and responsive layout.
+- [x] Preserve the collapsed agent-instructions section and the existing two-mode explanation.
+- [x] Confirm `.playwright-mcp/` remains untracked and untouched after the fast-forward and edits.
 
 ### Task 5: Build and verify local delivery
 
 **Files:**
 - No new source files; validate generated outputs and affected page.
 
-- [ ] Run `npm run build` in `C:\dev\AgentSurface` and `C:\dev\BoardyAnimated-boardy4age-agents`.
-- [ ] Run Vite preview and request `/llms.txt`, `/agentsurface/routes.json`, each generated Markdown URL, and the HTML route for every HTML-only manifest entry.
-- [ ] Confirm response status/content types, manifest-to-file parity, visible text labels, keyboard focus, and mobile channel-card wrapping.
-- [ ] Review Git status in all three repositories; ensure `.playwright-mcp/` and unrelated changes remain untouched.
-
-
+- [x] Run `npm run build` in `C:\dev\AgentSurface` and `C:\dev\BoardyAnimated-boardy4age-agents`.
+- [x] Run Vite preview and request `/llms.txt`, `/agentsurface/routes.json`, each generated Markdown URL, and the HTML route for every HTML-only manifest entry.
+- [x] Confirm response status/content types, manifest-to-file parity, visible text labels, keyboard focus, and mobile channel-card wrapping.
+- [x] Review Git status in all three repositories; ensure `.playwright-mcp/` and unrelated changes remain untouched.
