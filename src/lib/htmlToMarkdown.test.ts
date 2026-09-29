@@ -39,6 +39,11 @@ describe("htmlToMarkdown", () => {
     expect(md).toBe("Don't & won't — really");
   });
 
+  it("keeps word boundaries between adjacent inline labels", () => {
+    expect(htmlToMarkdown("<span>To</span><strong>boardy@example.com</strong> <span>From</span><strong>Your account</strong>"))
+      .toBe("To boardy@example.com From Your account");
+  });
+
   it("strips script and style blocks entirely, including their content", () => {
     const md = htmlToMarkdown("<p>Keep</p><script>alert('drop me')</script><style>.x{color:red}</style>");
     expect(md).toBe("Keep");

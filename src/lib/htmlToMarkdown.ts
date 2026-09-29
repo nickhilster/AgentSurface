@@ -49,6 +49,8 @@ export function htmlToMarkdown(fragment: string): string {
   // Remove script/style blocks entirely, including content.
   text = text.replace(/<script[\s\S]*?<\/script>/gi, "");
   text = text.replace(/<style[\s\S]*?<\/style>/gi, "");
+  // Preserve word boundaries between adjacent inline labels before stripping tags.
+  text = text.replace(/<\/(?:span|strong|b|a|label|button|summary|code|em|i)>/gi, " ");
 
   // Headings -> Markdown headings.
   text = text.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, (_, inner) => `\n# ${stripTags(inner)}\n`);
@@ -70,6 +72,7 @@ export function htmlToMarkdown(fragment: string): string {
 
   text = stripTags(text);
   text = decodeEntities(text);
+  text = text.replace(/[\t ]{2,}/g, " ");
 
   // Collapse excessive blank lines and trailing whitespace per line.
   text = text
