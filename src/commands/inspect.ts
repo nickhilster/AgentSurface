@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { NextAppRouterAdapter } from "../adapters/nextAppRouter.js";
+import { ViteStaticAdapter } from "../adapters/viteStatic.js";
 import { writeModelMeta } from "../lib/modelVersion.js";
 import type { CanonicalSiteModel, FrameworkAdapter } from "../types/model.js";
 
@@ -9,7 +10,7 @@ export interface InspectOptions {
   repoRoot: string;
 }
 
-const ADAPTERS: FrameworkAdapter[] = [new NextAppRouterAdapter()];
+const ADAPTERS: FrameworkAdapter[] = [new NextAppRouterAdapter(), new ViteStaticAdapter()];
 
 export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteModel> {
   const config = loadConfig(opts.repoRoot);

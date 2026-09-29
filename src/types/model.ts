@@ -51,6 +51,10 @@ export interface RouteRecord {
   contentBoundaryTag: string | null;
   provenance: ProvenanceRecord[];
   confidence: Confidence;
+  /** Verified page surface for static-site discovery. Omitted by older adapters. */
+  surfaceType?: "static-content" | "interactive" | "human-gated";
+  /** Explicit access/interaction requirements found in source, never inferred from a route name. */
+  accessRequirements?: string[];
 }
 
 export interface CapabilityRecord {
