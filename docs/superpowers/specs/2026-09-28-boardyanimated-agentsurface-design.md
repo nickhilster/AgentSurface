@@ -18,7 +18,9 @@ AgentSurface currently has a Next.js App Router adapter. Its public discovery ou
 
 Add a deterministic Vite/static adapter to AgentSurface. It will identify the Vite project from repository configuration, enumerate static `index.html` pages and React paths declared in `src/App.tsx`, and preserve source-file provenance for each route. It will not crawl arbitrary links and treat every linked URL as a route. Route inventory will exclude query-string test/capture variants and development-only routes.
 
-On the human-facing `/4age/agents/` page, add recognizable brand marks wherever a named third-party brand is shown, especially in the Boardy contact-channel cards. Keep readable text labels beside every logo. Use neutral accessible icons for generic channels such as SMS, phone, and email; do not use a brand mark that suggests a separate iMessage integration. Prefer existing local assets, otherwise add properly sourced local logo assets rather than runtime hotlinks.
+On the human-facing `/4age/agents/` page, add recognizable brand marks wherever a named third-party brand is shown, especially in the Boardy contact-channel cards. Keep readable text labels beside every logo. Use neutral accessible icons for generic email, phone, or text labels when they appear. Prefer existing local assets, otherwise add properly sourced local logo assets rather than runtime hotlinks.
+
+Update the Boardy4Age personal-agent guidance using the received Boardy review: primary email connection is required for direct sending, while preparing copy-ready email is an equal route; require a useful current-progress summary and the user's LinkedIn profile before a draft is ready; add one concise sensitive-information warning linked to `AGENT_PROTOCOL.md`; and keep the flow user-initiated without Boardy's separate proactive-memory prompt. The live picker at `https://www.boardy.ai/links/7guH3` was inspected in a rendered browser on 2026-09-28 and showed iMessage, WhatsApp, X, LinkedIn, and Email; SMS and Phone were not shown in that view. Date the check on the page and direct readers to the live picker because its options may change.
 
 For static HTML routes, the adapter will use explicit content boundaries. It must not mistake a soft-gate login form for page content. Routes using the client-side human gate will appear in the public route index with their canonical URL and a clear gated-page note, but no page Markdown will be published for them. Other static pages with a verified public boundary will receive Markdown mirrors.
 
@@ -38,6 +40,8 @@ Exclude non-page variants such as `?capture=1`, `?speaking=1`, `?testAudio=...`,
 
 The site-level public index may identify human-gated routes, but generated public Markdown must not contain their gated page content. This is an audience/content policy, not a claim that the client-side gate is a security boundary. Private files, credentials, environment files, and internal development routes are never published.
 
+The `/4age/agents/` flow is implemented in BoardyAnimated, while its linked behavior contract lives in the separate `nickhilster/boardy4age` repository. Keep the wording synchronized across `public/4age/agents/index.html`, `README.md`, and `AGENT_PROTOCOL.md`. CLI security and reliability changes are a separate workstream and are not implied by this website specification.
+
 ## Generation and discovery
 
 AgentSurface will produce a canonical route model with provenance in `.agentsurface/model/`. Public Markdown pages will be served under `public/agentsurface/pages/`; the public route manifest will be `public/agentsurface/routes.json`. Each manifest entry contains the canonical path, route title when deterministically available (otherwise the path), canonical HTML URL, Markdown URL or `null`, a surface type (`static-content`, `interactive`, or `human-gated`), source file paths, and any verified access/interaction requirements. `llms.txt` links to each intended public page, using a Markdown mirror when one is generated and the canonical HTML URL otherwise. Every discovery target must resolve in the built site.
@@ -55,11 +59,14 @@ The implementation is complete when:
 5. Repeated generation is byte-stable and does not overwrite human-owned content.
 6. AgentSurface validation reports no route-parity, discovery, ownership, or content-drift failures.
 7. The BoardyAnimated production build succeeds, and a local preview serves `llms.txt`, the route manifest, and each generated Markdown URL with the expected content type and status.
-8. The `/4age/agents/` channel cards show the appropriate brand marks with persistent text labels, retain the accurate SMS/iMessage distinction, and remain legible with keyboard navigation and assistive technology.
+8. The `/4age/agents/` channel cards show the appropriate brand marks with persistent text labels, identify iMessage as a distinct listed option, and remain legible with keyboard navigation and assistive technology.
+9. The page, README, and `AGENT_PROTOCOL.md` consistently describe connected-email sending and copy-ready email as valid paths, require current progress and LinkedIn details before drafting, warn against sharing sensitive details, and do not trigger Boardy without a user request.
+10. The channel list records the rendered picker check from 2026-09-28 (iMessage, WhatsApp, X, LinkedIn, Email) and links to the live picker for changes.
 
 ## Out of scope
 
 - Broad redesign or rewriting of BoardyAnimated's human-facing pages beyond the requested `/4age/agents/` channel-brand treatment.
+- Adding Boardy's proactive memory-trigger workflow to the Boardy4Age protocol.
 - Publishing gated page body content in public mirrors.
 - Generating UI actions, APIs, MCP tools, or other agent-operable capabilities.
 - Adding routes from query variants, build tooling, experiments, or unmerged local work.
