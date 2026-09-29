@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { loadConfig } from "../config.js";
 import { extractContentBoundary, htmlToMarkdown } from "../lib/htmlToMarkdown.js";
 import { assertModelVersion } from "../lib/modelVersion.js";
@@ -48,17 +48,17 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
     throw new Error(`No model found at ${modelPath}. Run "agentsurface inspect" first.`);
   }
   const routes: RouteRecord[] = JSON.parse(readFileSync(modelPath, "utf-8"));
-  const routesByPath = new Map(routes.map((r) => [r.path, r]));
+  const routesByPath = new Map(routes.map((r) => [normalizeRoutePath(r.path), r]));
 
   const failures: ValidationFailure[] = [];
   const unchecked: UncheckedRecord[] = [];
-  const generatedDir = join(opts.repoRoot, ".agentsurface", "generated", "pages");
+  const generatedDir = configMarkdownDir(opts.repoRoot);
   const generatedFiles = generatedDir && existsSync(generatedDir) ? listMarkdownFiles(generatedDir) : [];
 
   // --- Route parity + ownership safety ---
   for (const file of generatedFiles) {
     const routePath = generatedFileToRoutePath(generatedDir, file);
-    const route = routesByPath.get(routePath);
+    const route = routesByPath.get(normalizeRoutePath(routePath));
 
     if (!route) {
       failures.push({
@@ -99,8 +99,9 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
     const mdRefs = [...llmsTxt.matchAll(/\[[^\]]*\]\(([^)\s]+\.md)\)/g)].map((m) => m[1]);
     for (const ref of mdRefs) {
       checkedDiscoveryLinks++;
-      const relFile = ref === "/index.md" ? "index.md" : ref.replace(/^\//, "");
-      const abs = join(generatedDir, relFile);
+      const abs = config.output.markdownDir
+        ? resolve(opts.repoRoot, config.output.dir, "." + ref)
+        : join(generatedDir, ref === "/index.md" ? "index.md" : ref.replace(/^\//, ""));
       if (!existsSync(abs)) {
         failures.push({
           check: "discovery-integrity",
@@ -113,11 +114,73 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
     failures.push({ check: "discovery-integrity", path: `/${config.output.dir === "." ? "" : config.output.dir + "/"}llms.txt`, message: `${llmsTxtPath} does not exist` });
   }
 
+  if (config.output.markdownDir) {
+    const manifestPath = join(opts.repoRoot, config.output.dir, "agentsurface", "routes.json");
+    if (!existsSync(manifestPath)) {
+      failures.push({ check: "discovery-integrity", path: manifestPath, message: "public route manifest is missing" });
+    } else {
+      let manifest: { meta?: { generatedBy?: string }; routes?: Array<{ path?: string; title?: string; htmlUrl?: string; markdownUrl?: string | null; surfaceType?: string; sourceFiles?: string[]; requirements?: unknown[] }> };
+      try {
+        manifest = JSON.parse(readFileSync(manifestPath, "utf-8"));
+      } catch {
+        manifest = {};
+        failures.push({ check: "discovery-integrity", path: manifestPath, message: "public route manifest is not valid JSON" });
+      }
+      if (manifest.meta?.generatedBy !== "AgentSurface" || !Array.isArray(manifest.routes)) {
+        failures.push({ check: "ownership-safety", path: manifestPath, message: "public route manifest lacks AgentSurface ownership metadata or routes array" });
+      } else {
+        const intended = routes.filter((route) => route.contentType === "page" && route.classification === "public-static" && route.dynamicSegments.length === 0);
+        const publicEntries = new Map(manifest.routes.filter((entry) => typeof entry.path === "string").map((entry) => [normalizeRoutePath(entry.path!), entry]));
+        for (const route of intended) {
+          const entry = publicEntries.get(normalizeRoutePath(route.path));
+          if (!entry) {
+            failures.push({ check: "route-parity", path: route.path, message: "public route is missing from the route manifest" });
+            continue;
+          }
+          if (!entry.title || !entry.htmlUrl || !entry.surfaceType || !Array.isArray(entry.sourceFiles) || !Array.isArray(entry.requirements)) {
+            failures.push({ check: "discovery-integrity", path: route.path, message: "route manifest entry is missing required metadata" });
+          }
+          for (const sourceFile of entry.sourceFiles ?? []) {
+            if (!existsSync(join(opts.repoRoot, sourceFile))) failures.push({ check: "discovery-integrity", path: sourceFile, message: "manifest source file does not exist" });
+          }
+          if (entry.markdownUrl !== null && entry.markdownUrl !== undefined) {
+            if (!entry.markdownUrl.startsWith("/") || entry.markdownUrl.includes("..")) {
+              failures.push({ check: "discovery-integrity", path: entry.markdownUrl, message: "Markdown URL must be a local absolute path without traversal" });
+            } else {
+              const publicRoot = resolve(opts.repoRoot, config.output.dir);
+              const target = resolve(publicRoot, "." + entry.markdownUrl);
+              if (!target.startsWith(publicRoot) || !existsSync(target)) {
+                failures.push({ check: "discovery-integrity", path: entry.markdownUrl, message: "route manifest Markdown target does not resolve to a local file" });
+              }
+            }
+          }
+          if (opts.serverBaseUrl && entry.markdownUrl === null) {
+            let routeUrl: URL;
+            try { routeUrl = new URL(entry.htmlUrl!, opts.serverBaseUrl); } catch { routeUrl = new URL(route.path, opts.serverBaseUrl); }
+            const localUrl = new URL(routeUrl.pathname, opts.serverBaseUrl);
+            checkedDiscoveryLinks++;
+            try {
+              const response = await fetch(localUrl);
+              if (!response.ok) failures.push({ check: "discovery-integrity", path: route.path, message: "HTML-only route returned HTTP " + response.status });
+            } catch (err) {
+              unchecked.push({ check: "discovery-integrity", path: route.path, reason: `could not reach ${localUrl}: ${err instanceof Error ? err.message : String(err)}` });
+            }
+          }
+        }
+        for (const entry of manifest.routes) {
+          if (entry.path && !intended.some((route) => normalizeRoutePath(route.path) === normalizeRoutePath(entry.path!))) {
+            failures.push({ check: "route-parity", path: entry.path, message: "manifest entry has no matching public route in the current model" });
+          }
+        }
+      }
+    }
+  }
+
   // --- Drift / reachability: re-fetch live content and diff against what's on disk ---
   if (opts.serverBaseUrl) {
     for (const file of generatedFiles) {
       const routePath = generatedFileToRoutePath(generatedDir, file);
-      const route = routesByPath.get(routePath);
+      const route = routesByPath.get(normalizeRoutePath(routePath));
       if (!route || !route.contentBoundaryTag) continue; // not a drift candidate
 
       const url = new URL(routePath, opts.serverBaseUrl).toString();
@@ -201,4 +264,13 @@ function listMarkdownFiles(dir: string): string[] {
 function generatedFileToRoutePath(generatedDir: string, file: string): string {
   const rel = file.slice(generatedDir.length).replace(/\\/g, "/").replace(/\.md$/, "");
   return rel === "/index" ? "/" : rel;
+}
+
+function normalizeRoutePath(path: string): string {
+  return path === "/" ? "/" : "/" + path.replace(/^\/+|\/+$/g, "");
+}
+
+function configMarkdownDir(repoRoot: string): string {
+  const config = loadConfig(repoRoot);
+  return config.output.markdownDir ? join(repoRoot, config.output.markdownDir) : join(repoRoot, ".agentsurface", "generated", "pages");
 }

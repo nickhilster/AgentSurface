@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { loadConfig } from "../config.js";
 import { extractContentBoundary, htmlToMarkdown } from "../lib/htmlToMarkdown.js";
 import { assertModelVersion } from "../lib/modelVersion.js";
@@ -28,6 +28,7 @@ export interface GenerateResult {
   generated: string[];
   skipped: GenerateSkip[];
   llmsTxt: { written: boolean; conflict: boolean };
+  routesManifest: { written: boolean; conflict: boolean };
 }
 
 export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult> {
@@ -45,14 +46,20 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
     ? JSON.parse(readFileSync(capabilitiesPath, "utf-8"))
     : [];
 
-  const generatedDir = join(opts.repoRoot, ".agentsurface", "generated", "pages");
+  const generatedDir = config.output.markdownDir
+    ? join(opts.repoRoot, config.output.markdownDir)
+    : join(opts.repoRoot, ".agentsurface", "generated", "pages");
   mkdirSync(generatedDir, { recursive: true });
 
-  const result: GenerateResult = { generated: [], skipped: [], llmsTxt: { written: false, conflict: false } };
+  const result: GenerateResult = { generated: [], skipped: [], llmsTxt: { written: false, conflict: false }, routesManifest: { written: false, conflict: false } };
 
   for (const route of routes) {
     if (route.contentType !== "page") {
       continue; // redirects and unknown content types are never mirrored
+    }
+    if (route.surfaceType === "human-gated") {
+      result.skipped.push({ path: route.path, reason: "human-gated route; page body is excluded from public Markdown", fatal: false });
+      continue;
     }
     if (route.classification !== "public-static" && route.classification !== "public-dynamic") {
       result.skipped.push({ path: route.path, reason: `classification "${route.classification}" is not public; excluded by default`, fatal: false });
@@ -110,21 +117,71 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
     );
   }
 
-  result.llmsTxt = generateLlmsTxt(opts.repoRoot, config, routes, capabilities);
+  result.llmsTxt = generateLlmsTxt(opts.repoRoot, config, routes, capabilities, new Set(result.generated));
+  if (config.output.markdownDir) {
+    result.routesManifest = generatePublicRoutesManifest(opts.repoRoot, config, routes, new Set(result.generated));
+  }
 
   return result;
 }
 
 function routePathToGeneratedFile(generatedDir: string, routePath: string): string {
-  const clean = routePath === "/" ? "/index" : routePath;
+  const trimmed = routePath.replace(/\/+$/, "") || "/";
+  const clean = trimmed === "/" ? "/index" : trimmed;
   return join(generatedDir, clean + ".md");
+}
+
+function routePathToMarkdownUrl(repoRoot: string, config: ReturnType<typeof loadConfig>, routePath: string): string {
+  if (!config.output.markdownDir) return (routePath === "/" ? "/index" : routePath.replace(/\/+$/, "")) + ".md";
+  const file = routePathToGeneratedFile(join(repoRoot, config.output.markdownDir), routePath);
+  const publicRoot = resolve(repoRoot, config.output.dir);
+  return "/" + relative(publicRoot, file).split("\\").join("/");
+}
+
+function generatePublicRoutesManifest(
+  repoRoot: string,
+  config: ReturnType<typeof loadConfig>,
+  routes: RouteRecord[],
+  generated: Set<string>
+): { written: boolean; conflict: boolean } {
+  const eligible = routes.filter((route) => route.contentType === "page" && route.classification === "public-static" && route.dynamicSegments.length === 0);
+  const baseHost = config.site.hostnames[0];
+  const projected = eligible.map((route) => {
+    const surfaceType = route.surfaceType ?? (route.contentBoundaryTag ? "static-content" : "interactive");
+    const markdownUrl = generated.has(route.path) ? routePathToMarkdownUrl(repoRoot, config, route.path) : null;
+    const htmlUrl = baseHost ? "https://" + baseHost + route.path : route.path;
+    return {
+      path: route.path,
+      title: readRouteTitle(repoRoot, route.sourceFiles) ?? (route.path === "/" ? "Home" : route.path),
+      htmlUrl,
+      markdownUrl,
+      surfaceType,
+      sourceFiles: route.sourceFiles,
+      requirements: route.accessRequirements ?? [],
+    };
+  });
+  const path = join(repoRoot, config.output.dir, "agentsurface", "routes.json");
+  const content = JSON.stringify({ meta: { generatedBy: "AgentSurface", sourceModel: ".agentsurface/model/routes.json" }, routes: projected }, null, 2) + "\n";
+  return writeOwned(path, content, config.ownership.overwriteHumanOwned);
+}
+
+function readRouteTitle(repoRoot: string, sourceFiles: string[]): string | null {
+  for (const source of sourceFiles) {
+    const abs = join(repoRoot, source);
+    if (!existsSync(abs)) continue;
+    const sourceText = readFileSync(abs, "utf-8");
+    const match = sourceText.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    if (match) return match[1].replace(/\s+/g, " ").trim().replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  }
+  return null;
 }
 
 function generateLlmsTxt(
   repoRoot: string,
   config: ReturnType<typeof loadConfig>,
   routes: RouteRecord[],
-  capabilities: CapabilityRecord[]
+  capabilities: CapabilityRecord[],
+  generated: Set<string>
 ): { written: boolean; conflict: boolean } {
   const publicPages = routes.filter(
     (r) => r.contentType === "page" && r.classification === "public-static" && r.dynamicSegments.length === 0
@@ -142,9 +199,10 @@ function generateLlmsTxt(
   lines.push("");
   for (const r of publicPages) {
     const label = r.path === "/" ? "Home" : r.path.replace(/^\//, "");
-    const hasAlternate = r.contentBoundaryTag !== null;
-    const target = hasAlternate ? (r.path === "/" ? "/index.md" : r.path + ".md") : r.path;
-    lines.push(`- [${label}](${target})`);
+    const hasAlternate = generated.has(r.path);
+    const target = hasAlternate ? routePathToMarkdownUrl(repoRoot, config, r.path) : r.path;
+    const note = r.surfaceType === "human-gated" ? ": Human-gated page; no Markdown mirror." : r.surfaceType === "interactive" ? ": Interactive page; see HTML." : "";
+    lines.push(`- [${label}](${target})${note}`);
   }
 
   // Only list capabilities that are:

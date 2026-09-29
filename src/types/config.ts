@@ -16,6 +16,8 @@ export interface AgentSurfaceConfig {
      * validate; does not affect .agentsurface/, which AgentSurface owns outright.
      */
     dir: string;
+    /** Optional static-site directory for publicly served Markdown mirrors. */
+    markdownDir?: string;
   };
   ownership: {
     /**
@@ -37,6 +39,7 @@ export const DEFAULT_CONFIG: AgentSurfaceConfig = {
   },
   output: {
     dir: "public",
+    markdownDir: undefined,
   },
   ownership: {
     overwriteHumanOwned: false,

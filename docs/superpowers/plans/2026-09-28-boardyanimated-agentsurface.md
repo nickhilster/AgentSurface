@@ -71,10 +71,10 @@
 - Include every intended public route in `llms.txt`; point to Markdown when generated, otherwise to HTML.
 - Validate route parity, manifest shape, output ownership, and every local discovery target.
 
-- [ ] Add generator/validator tests for Markdown URL mapping, HTML-only routes, human-gated routes, missing assets, and refusal to overwrite an unowned manifest.
-- [ ] Run the affected Vitest files and confirm the new cases fail before implementation.
-- [ ] Implement output paths, route manifest projection, and validation.
-- [ ] Run focused tests, then the complete AgentSurface Vitest suite; all must pass.
+- [x] Add generator/validator tests for Markdown URL mapping, HTML-only routes, human-gated routes, missing assets, and refusal to overwrite an unowned manifest.
+- [x] Run the affected Vitest files and confirm the new cases fail before implementation.
+- [x] Implement output paths, route manifest projection, and validation.
+- [x] Run focused tests, then the complete AgentSurface Vitest suite; all must pass.
 
 ### Task 3: Dogfood AgentSurface on BoardyAnimated
 
@@ -125,4 +125,5 @@
 - [ ] Run Vite preview and request `/llms.txt`, `/agentsurface/routes.json`, each generated Markdown URL, and the HTML route for every HTML-only manifest entry.
 - [ ] Confirm response status/content types, manifest-to-file parity, visible text labels, keyboard focus, and mobile channel-card wrapping.
 - [ ] Review Git status in all three repositories; ensure `.playwright-mcp/` and unrelated changes remain untouched.
+
 

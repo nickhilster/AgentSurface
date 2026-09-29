@@ -279,4 +279,41 @@ describe("runGenerate", () => {
 
     await expect(runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" })).rejects.toThrow(/agentsurface inspect/i);
   });
+
+  it("writes public Markdown and a route manifest, while listing HTML-only routes without a mirror", async () => {
+    setUpConfig({ output: { dir: "public", markdownDir: "public/agentsurface/pages" } });
+    const staticRoute = publicRoute("/about/", { sourceFiles: ["public/about/index.html"], surfaceType: "static-content" });
+    const gatedRoute = publicRoute("/private/", { sourceFiles: ["public/private/index.html"], surfaceType: "human-gated", contentBoundaryTag: null });
+    const interactiveRoute = publicRoute("/demo", { sourceFiles: ["src/App.tsx"], surfaceType: "interactive", contentBoundaryTag: null });
+    setUpModel([staticRoute, gatedRoute, interactiveRoute]);
+    mkdirSync(join(repoRoot, "public", "about"), { recursive: true });
+    writeFileSync(join(repoRoot, "public", "about", "index.html"), "<title>About Boardy</title>", "utf-8");
+    mockFetchOk("<html><body><main><h1>About Boardy</h1></main></body></html>");
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    expect(readFileSync(join(repoRoot, "public", "agentsurface", "pages", "about.md"), "utf-8")).toContain("About Boardy");
+    const manifest = JSON.parse(readFileSync(join(repoRoot, "public", "agentsurface", "routes.json"), "utf-8"));
+    expect(manifest.meta.generatedBy).toBe("AgentSurface");
+    expect(manifest.routes).toHaveLength(3);
+    expect(manifest.routes.find((r: { path: string }) => r.path === "/about/")).toMatchObject({ title: "About Boardy", markdownUrl: "/agentsurface/pages/about.md", surfaceType: "static-content" });
+    expect(manifest.routes.find((r: { path: string }) => r.path === "/private/")).toMatchObject({ markdownUrl: null, surfaceType: "human-gated" });
+    expect(manifest.routes.find((r: { path: string }) => r.path === "/demo")).toMatchObject({ markdownUrl: null, surfaceType: "interactive" });
+    const llms = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(llms).toContain("/agentsurface/pages/about.md");
+    expect(llms).toContain("[private/](/private/)");
+  });
+
+  it("does not overwrite a human-owned public route manifest", async () => {
+    setUpConfig({ output: { dir: "public", markdownDir: "public/agentsurface/pages" } });
+    setUpModel([publicRoute("/about", { surfaceType: "static-content" })]);
+    const manifestPath = join(repoRoot, "public", "agentsurface", "routes.json");
+    mkdirSync(join(repoRoot, "public", "agentsurface"), { recursive: true });
+    writeFileSync(manifestPath, "{\"owner\":\"human\"}\n", "utf-8");
+    mockFetchOk(PAGE_HTML);
+
+    await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    expect(readFileSync(manifestPath, "utf-8")).toBe("{\"owner\":\"human\"}\n");
+  });
 });

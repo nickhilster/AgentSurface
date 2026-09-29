@@ -53,6 +53,14 @@ describe("ViteStaticAdapter", () => {
     expect(routes.find((r) => r.path === "/meet-side-panel")?.surfaceType).toBe("interactive");
   });
 
+  it("records an explicitly implemented browser permission requirement and source component", async () => {
+    writeFile("src/App.tsx", `import MicDemo from '@/MicDemo';\nif (pathname === '/mic-demo') return <MicDemo />;`);
+    writeFile("src/MicDemo.tsx", `navigator.mediaDevices.getUserMedia({ audio: true });`);
+    const route = (await adapter.inspectRoutes({ rootDir: repoRoot })).find((r) => r.path === "/mic-demo");
+    expect(route?.sourceFiles).toEqual(["src/App.tsx", "src/MicDemo.tsx"]);
+    expect(route?.accessRequirements).toContain("Browser microphone permission is requested to analyze the local microphone.");
+  });
+
   it("gives a static HTML route precedence over a duplicate React route", async () => {
     writeFile("public/free-boardy/index.html", "<main>static page</main>");
     writeFile("src/App.tsx", `if (pathname === '/free-boardy') return <FreeBoardy />;`);

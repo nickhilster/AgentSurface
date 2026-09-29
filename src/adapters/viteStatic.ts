@@ -39,10 +39,19 @@ export class ViteStaticAdapter implements FrameworkAdapter {
     const appFile = join(repo.rootDir, "src", "App.tsx");
     if (existsSync(appFile)) {
       const source = safeRead(appFile);
+      const modules = new Map<string, { file: string; text: string }>();
+      for (const imported of source.matchAll(/import\s+([A-Za-z_$][\w$]*)\s+from\s+["']@\/([^"']+)["']/g)) {
+        const component = imported[1];
+        const base = join(repo.rootDir, "src", imported[2]);
+        const modulePath = [".tsx", ".ts", ".jsx", ".js"].map((ext) => base + ext).find((candidate) => existsSync(candidate));
+        if (modulePath) modules.set(component, { file: relative(repo.rootDir, modulePath).split(sep).join("/"), text: safeRead(modulePath) });
+      }
       for (const match of source.matchAll(/if\s*\(\s*pathname\s*===\s*["']([^"']+)["']\s*\)\s*\{?\s*return\s*<([A-Za-z_$][\w$]*)\b/g)) {
         const path = normalizePath(match[1]);
         if (path.startsWith("/.figma/") || path.includes("?")) continue;
-        const route = makeRoute(path, "src/App.tsx", "interactive", null);
+        const module = modules.get(match[2]);
+        const route = makeRoute(path, module ? ["src/App.tsx", module.file] : "src/App.tsx", "interactive", null,
+          module ? detectRequirements(module.text) : []);
         // Static public files take precedence because Vite/Vercel serves them before the SPA rewrite.
         if (!routes.has(normalizePath(path))) routes.set(normalizePath(path), route);
       }
@@ -54,22 +63,30 @@ export class ViteStaticAdapter implements FrameworkAdapter {
   }
 }
 
-function makeRoute(path: string, source: string, surfaceType: NonNullable<RouteRecord["surfaceType"]>, contentBoundaryTag: string | null): RouteRecord {
+function makeRoute(path: string, source: string | string[], surfaceType: NonNullable<RouteRecord["surfaceType"]>, contentBoundaryTag: string | null, accessRequirements: string[] = []): RouteRecord {
+  const sourceFiles = Array.isArray(source) ? source : [source];
   return {
     path,
     classification: "public-static",
     contentType: "page",
-    sourceFiles: [source],
+    sourceFiles,
     agentReadableAlternate: null,
     canonicalUrl: null,
     dynamicSegments: [],
     redirectsTo: null,
     contentBoundaryTag,
-    provenance: [{ subject: `route:${path}`, claim: `surface:${surfaceType}`, source, method: "framework-route-parser", confidence: 1 }],
+    provenance: [{ subject: `route:${path}`, claim: `surface:${surfaceType}`, source: sourceFiles[0], method: "framework-route-parser", confidence: 1 }],
     confidence: 1,
     surfaceType,
-    accessRequirements: [],
+    accessRequirements,
   };
+}
+
+function detectRequirements(source: string): string[] {
+  const requirements: string[] = [];
+  if (/navigator\.mediaDevices\.getUserMedia\s*\(/.test(source)) requirements.push("Browser microphone permission is requested to analyze the local microphone.");
+  if (/inside a Google Meet call[\s\S]{0,80}Activities panel|Activities panel[\s\S]{0,80}Google Meet call/i.test(source)) requirements.push("Open from inside a Google Meet call's Activities panel.");
+  return requirements;
 }
 
 function normalizePath(path: string): string {

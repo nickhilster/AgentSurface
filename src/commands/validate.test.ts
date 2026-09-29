@@ -176,4 +176,42 @@ describe("runValidate", () => {
 
     await expect(runValidate({ repoRoot, acknowledgeNoServer: true })).rejects.toThrow(/agentsurface inspect/i);
   });
+
+  it("reports a missing public Markdown target referenced by the route manifest", async () => {
+    setUpConfig();
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test Site", hostnames: [] }, output: { dir: "public", markdownDir: "public/agentsurface/pages" } });
+    setUpModel([aboutRoute]);
+    const dir = join(repoRoot, "public", "agentsurface");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "routes.json"), JSON.stringify({
+      meta: { generatedBy: "AgentSurface" },
+      routes: [{ path: "/about", title: "About", htmlUrl: "/about", markdownUrl: "/agentsurface/pages/about.md", surfaceType: "static-content", sourceFiles: ["app/about/page.tsx"], requirements: [] }],
+    }), "utf-8");
+    setUpLlmsTxt("# Test Site\n");
+
+    const result = await runValidate({ repoRoot, acknowledgeNoServer: true });
+
+    expect(result.failures.some((f) => f.check === "discovery-integrity" && f.path.includes("about.md"))).toBe(true);
+  });
+
+  it("reports missing local discovery sources and checks an HTML-only manifest route against the preview", async () => {
+    setUpConfig();
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test Site", hostnames: ["example.test"] }, output: { dir: "public", markdownDir: "public/agentsurface/pages" } });
+    setUpModel([aboutRoute]);
+    const dir = join(repoRoot, "public", "agentsurface");
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "routes.json"), JSON.stringify({
+      meta: { generatedBy: "AgentSurface" },
+      routes: [{ path: "/about", title: "About", htmlUrl: "https://example.test/about", markdownUrl: null, surfaceType: "interactive", sourceFiles: ["src/App.tsx"], requirements: [] }],
+    }), "utf-8");
+    setUpLlmsTxt("# Test Site\n");
+    const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await runValidate({ repoRoot, serverBaseUrl: "http://localhost:4173" });
+
+    expect(result.failures.some((f) => f.check === "discovery-integrity" && f.path === "src/App.tsx")).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith(new URL("http://localhost:4173/about"));
+    expect(result.checkedDiscoveryLinks).toBe(1);
+  });
 });
