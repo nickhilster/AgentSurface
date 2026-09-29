@@ -183,7 +183,7 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
       const route = routesByPath.get(normalizeRoutePath(routePath));
       if (!route || !route.contentBoundaryTag) continue; // not a drift candidate
 
-      const url = new URL(routePath, opts.serverBaseUrl).toString();
+      const url = new URL(route.path, opts.serverBaseUrl).toString();
       try {
         const res = await fetch(url);
         if (!res.ok) {

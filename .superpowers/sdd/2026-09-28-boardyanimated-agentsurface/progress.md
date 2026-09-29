@@ -34,3 +34,5 @@ Plan: `docs/superpowers/plans/2026-09-28-boardyanimated-agentsurface.md`
 - Human-gated pages are skipped before fetching rendered content. Ownership checks protect the route manifest and Markdown files.
 - Validator checks public manifest shape, route parity, ownership, source paths, Markdown targets, and preview reachability for HTML-only routes.
 - Red runs failed for the absent public Markdown and validator manifest behavior. Targeted suite passes (32/32), full suite and build run below.
+
+- Follow-up regression from BoardyAnimated preview: drift checks now fetch each route's canonical path (including its trailing slash) while comparing generated Markdown paths in normalized form. Focused validator tests pass (11/11); live local validation passed with 4 Markdown routes and 15 discovery links.

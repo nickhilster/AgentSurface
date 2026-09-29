@@ -214,4 +214,18 @@ describe("runValidate", () => {
     expect(fetchMock).toHaveBeenCalledWith(new URL("http://localhost:4173/about"));
     expect(result.checkedDiscoveryLinks).toBe(1);
   });
+
+  it("uses the canonical trailing slash when checking a static route's content drift", async () => {
+    setUpConfig();
+    const trailingRoute = { ...aboutRoute, path: "/about/" };
+    setUpModel([trailingRoute]);
+    setUpGeneratedPage("/about/", MATCHING_MARKDOWN);
+    setUpLlmsTxt("# Test Site\n");
+    const fetchMock = vi.fn(async () => new Response(MATCHING_HTML, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runValidate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    expect(fetchMock).toHaveBeenCalledWith("http://localhost:3000/about/");
+  });
 });
