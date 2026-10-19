@@ -23,13 +23,17 @@ export interface OwnedWriteResult {
   conflict: boolean;
 }
 
-export function writeOwned(path: string, content: string, overwriteHumanOwned: boolean): OwnedWriteResult {
+export function checkOwned(path: string, overwriteHumanOwned: boolean): OwnedWriteResult {
   if (existsSync(path) && !overwriteHumanOwned) {
     const existing = readFileSync(path, "utf-8");
-    if (!existing.startsWith(OWNERSHIP_HEADER_PREFIX)) {
-      return { written: false, conflict: true };
-    }
+    if (!existing.startsWith(OWNERSHIP_HEADER_PREFIX)) return { written: false, conflict: true };
   }
+  return { written: false, conflict: false };
+}
+
+export function writeOwned(path: string, content: string, overwriteHumanOwned: boolean): OwnedWriteResult {
+  const ownership = checkOwned(path, overwriteHumanOwned);
+  if (ownership.conflict) return ownership;
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content, "utf-8");
   return { written: true, conflict: false };

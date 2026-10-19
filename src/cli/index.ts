@@ -2,6 +2,7 @@
 import { runInit } from "../commands/init.js";
 import { runInspect } from "../commands/inspect.js";
 import { runGenerate } from "../commands/generate.js";
+import { runDiff } from "../commands/diff.js";
 import { runValidate, writeValidationReport } from "../commands/validate.js";
 
 function parseArgs(argv: string[]): { command: string; flags: Record<string, string> } {
@@ -106,8 +107,13 @@ async function main(): Promise<void> {
       break;
     }
     case "diff": {
-      console.error(`"${command}" is not implemented in this slice yet.`);
-      process.exitCode = 1;
+      const result = await runDiff({ repoRoot, serverBaseUrl: flags.server });
+      for (const category of ["create", "update", "delete", "conflict", "unchecked"] as const) {
+        const entries = result.changes[category];
+        console.log(`${category}: ${entries.length}`);
+        for (const entry of entries) console.log(`  ${entry.path}: ${entry.detail}`);
+      }
+      if (result.changes.conflict.length > 0) process.exitCode = 1;
       break;
     }
     default: {

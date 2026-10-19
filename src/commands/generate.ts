@@ -31,6 +31,11 @@ export interface GenerateResult {
   routesManifest: { written: boolean; conflict: boolean };
 }
 
+export interface ProjectedArtifact {
+  path: string;
+  content: string;
+}
+
 export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult> {
   const config = loadConfig(opts.repoRoot);
   assertModelVersion(opts.repoRoot);
@@ -90,19 +95,15 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
       continue;
     }
 
-    const fragment = extractContentBoundary(html, route.contentBoundaryTag);
-    if (fragment === null) {
+    const artifact = projectPageArtifact(opts.repoRoot, config, route, html);
+    if (!artifact) {
       result.skipped.push({ path: route.path, reason: `rendered HTML did not contain a well-formed <${route.contentBoundaryTag}> boundary`, fatal: false });
       continue;
     }
 
-    const markdown = htmlToMarkdown(fragment);
-    const outFile = routePathToGeneratedFile(generatedDir, route.path);
-    const content = ownershipHeader(".agentsurface/model/routes.json") + markdown + "\n";
-
-    const writeResult = writeOwned(outFile, content, config.ownership.overwriteHumanOwned);
+    const writeResult = writeOwned(artifact.path, artifact.content, config.ownership.overwriteHumanOwned);
     if (writeResult.conflict) {
-      result.skipped.push({ path: route.path, reason: `${outFile} exists and is not AgentSurface-owned; refusing to overwrite`, fatal: false });
+      result.skipped.push({ path: route.path, reason: `${artifact.path} exists and is not AgentSurface-owned; refusing to overwrite`, fatal: false });
       continue;
     }
 
@@ -117,18 +118,38 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
     );
   }
 
-  result.llmsTxt = generateLlmsTxt(opts.repoRoot, config, routes, capabilities, new Set(result.generated));
+  const llmsArtifact = projectLlmsTxt(opts.repoRoot, config, routes, capabilities, new Set(result.generated));
+  result.llmsTxt = writeOwned(llmsArtifact.path, llmsArtifact.content, config.ownership.overwriteHumanOwned);
   if (config.output.markdownDir) {
-    result.routesManifest = generatePublicRoutesManifest(opts.repoRoot, config, routes, new Set(result.generated));
+    const manifestArtifact = projectPublicRoutesManifest(opts.repoRoot, config, routes, new Set(result.generated));
+    result.routesManifest = writeOwned(manifestArtifact.path, manifestArtifact.content, config.ownership.overwriteHumanOwned);
   }
 
   return result;
 }
 
-function routePathToGeneratedFile(generatedDir: string, routePath: string): string {
+export function routePathToGeneratedFile(generatedDir: string, routePath: string): string {
   const trimmed = routePath.replace(/\/+$/, "") || "/";
   const clean = trimmed === "/" ? "/index" : trimmed;
   return join(generatedDir, clean + ".md");
+}
+
+export function projectPageArtifact(
+  repoRoot: string,
+  config: ReturnType<typeof loadConfig>,
+  route: RouteRecord,
+  html: string
+): ProjectedArtifact | null {
+  if (!route.contentBoundaryTag) return null;
+  const fragment = extractContentBoundary(html, route.contentBoundaryTag);
+  if (fragment === null) return null;
+  const generatedDir = config.output.markdownDir
+    ? join(repoRoot, config.output.markdownDir)
+    : join(repoRoot, ".agentsurface", "generated", "pages");
+  return {
+    path: routePathToGeneratedFile(generatedDir, route.path),
+    content: ownershipHeader(".agentsurface/model/routes.json") + htmlToMarkdown(fragment) + "\n",
+  };
 }
 
 function routePathToMarkdownUrl(repoRoot: string, config: ReturnType<typeof loadConfig>, routePath: string): string {
@@ -138,12 +159,12 @@ function routePathToMarkdownUrl(repoRoot: string, config: ReturnType<typeof load
   return "/" + relative(publicRoot, file).split("\\").join("/");
 }
 
-function generatePublicRoutesManifest(
+export function projectPublicRoutesManifest(
   repoRoot: string,
   config: ReturnType<typeof loadConfig>,
   routes: RouteRecord[],
   generated: Set<string>
-): { written: boolean; conflict: boolean } {
+): ProjectedArtifact {
   const eligible = routes.filter((route) => route.contentType === "page" && route.classification === "public-static" && route.dynamicSegments.length === 0);
   const baseHost = config.site.hostnames[0];
   const projected = eligible.map((route) => {
@@ -162,7 +183,7 @@ function generatePublicRoutesManifest(
   });
   const path = join(repoRoot, config.output.dir, "agentsurface", "routes.json");
   const content = JSON.stringify({ meta: { generatedBy: "AgentSurface", sourceModel: ".agentsurface/model/routes.json" }, routes: projected }, null, 2) + "\n";
-  return writeOwned(path, content, config.ownership.overwriteHumanOwned);
+  return { path, content };
 }
 
 function readRouteTitle(repoRoot: string, sourceFiles: string[]): string | null {
@@ -176,13 +197,13 @@ function readRouteTitle(repoRoot: string, sourceFiles: string[]): string | null 
   return null;
 }
 
-function generateLlmsTxt(
+export function projectLlmsTxt(
   repoRoot: string,
   config: ReturnType<typeof loadConfig>,
   routes: RouteRecord[],
   capabilities: CapabilityRecord[],
   generated: Set<string>
-): { written: boolean; conflict: boolean } {
+): ProjectedArtifact {
   const publicPages = routes.filter(
     (r) => r.contentType === "page" && r.classification === "public-static" && r.dynamicSegments.length === 0
   );
@@ -242,5 +263,5 @@ function generateLlmsTxt(
 
   const outPath = join(repoRoot, config.output.dir, "llms.txt");
   const content = ownershipHeader(".agentsurface/model/routes.json") + lines.join("\n") + "\n";
-  return writeOwned(outPath, content, config.ownership.overwriteHumanOwned);
+  return { path: outPath, content };
 }
