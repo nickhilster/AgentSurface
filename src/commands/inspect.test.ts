@@ -100,4 +100,29 @@ describe("inspect owner route overrides", () => {
     const product = model.entities.find((entity) => entity.kind === "product");
     expect(product && "availability" in product ? product.availability : undefined).toMatchObject({ value: "https://schema.org/InStock", freshness: { class: "unknown" } });
   });
+
+  it("createsStaticJsonLdCatalogOnlyWhenOwnerConfigured", async () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-jsonld-catalog-"));
+    writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
+    writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
+    mkdirSync(join(repoRoot, "public", "parts"), { recursive: true });
+    writeFileSync(join(repoRoot, "public", "parts", "index.html"), `<script type="application/ld+json">${JSON.stringify({
+      "@context": "https://schema.org", "@type": "Product", sku: "PART-1", name: "Part one",
+    })}</script><main>Part one</main>`);
+    writeConfig(repoRoot, {
+      ...DEFAULT_CONFIG,
+      site: { name: "Test", hostnames: [] },
+      catalogs: [{
+        id: "parts", entityKind: "product", scope: "public", source: { kind: "static-jsonld" },
+        fieldAllowlist: [{ name: "name", sourceField: "label", type: "string", operators: ["eq"] }],
+        canonicalRoute: "/parts/{id}", maxResults: 10, freshness: { class: "static" },
+      }],
+    });
+
+    const model = await runInspect({ repoRoot });
+
+    expect(model.catalogs).toHaveLength(1);
+    expect(model.catalogs[0]).toMatchObject({ searchMode: "static-index", source: { kind: "static-jsonld" }, freshness: { class: "static" } });
+    expect(model.catalogs[0].provenance).toContainEqual(expect.objectContaining({ method: "owner-config" }));
+  });
 });

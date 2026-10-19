@@ -83,10 +83,20 @@ function validateCatalog(value: unknown, index: number): CatalogConfig {
   if (entry.scope !== "public") throw new Error(`${path}.scope must explicitly be public.`);
   const source = asRecord(entry.source, `${path}.source`);
   assertAllowedKeys(source, ["kind", "file"], `${path}.source`);
-  if (source.kind !== "openapi") throw new Error(`${path}.source.kind must be openapi.`);
-  const file = normalizeRelativeDirectory(source.file, `${path}.source.file`);
-  const searchOperation = requiredString(entry.searchOperation, `${path}.searchOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
-  const detailOperation = requiredString(entry.detailOperation, `${path}.detailOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
+  if (source.kind !== "openapi" && source.kind !== "static-jsonld") throw new Error(`${path}.source.kind must be openapi or static-jsonld.`);
+  let normalizedSource: CatalogConfig["source"];
+  let searchOperation: string | undefined;
+  let detailOperation: string | undefined;
+  if (source.kind === "openapi") {
+    assertAllowedKeys(source, ["kind", "file"], `${path}.source`);
+    normalizedSource = { kind: "openapi", file: normalizeRelativeDirectory(source.file, `${path}.source.file`) };
+    searchOperation = requiredString(entry.searchOperation, `${path}.searchOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
+    detailOperation = requiredString(entry.detailOperation, `${path}.detailOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
+  } else {
+    assertAllowedKeys(source, ["kind"], `${path}.source`);
+    if (entry.searchOperation !== undefined || entry.detailOperation !== undefined) throw new Error(`${path}.searchOperation and detailOperation are not supported for static-jsonld.`);
+    normalizedSource = { kind: "static-jsonld" };
+  }
   if (!Array.isArray(entry.fieldAllowlist) || entry.fieldAllowlist.length === 0) throw new Error(`${path}.fieldAllowlist must contain at least one explicitly allowlisted field.`);
   const fieldAllowlist = entry.fieldAllowlist.map((field, fieldIndex) => validateCatalogField(field, `${path}.fieldAllowlist[${fieldIndex}]`));
   if (new Set(fieldAllowlist.map((field) => field.name)).size !== fieldAllowlist.length) throw new Error(`${path}.fieldAllowlist contains duplicate names.`);
@@ -101,7 +111,7 @@ function validateCatalog(value: unknown, index: number): CatalogConfig {
   const marketPolicy = entry.marketPolicy === undefined ? undefined : validateMarketPolicy(entry.marketPolicy, `${path}.marketPolicy`);
   return {
     id, entityKind: entry.entityKind as CatalogConfig["entityKind"], scope: "public",
-    source: { kind: "openapi", file }, searchOperation, detailOperation,
+    source: normalizedSource, ...(searchOperation ? { searchOperation } : {}), ...(detailOperation ? { detailOperation } : {}),
     fieldAllowlist, canonicalRoute, maxResults: entry.maxResults as number,
     freshness: {
       class: freshnessInput.class as CatalogConfig["freshness"]["class"],

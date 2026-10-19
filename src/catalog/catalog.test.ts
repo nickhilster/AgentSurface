@@ -6,6 +6,7 @@ import type { CatalogBackend, CatalogItemDetail } from "./types.js";
 const catalog: CatalogRecord = {
   id: "parts", entityKind: "product", scope: "public",
   source: { kind: "openapi", file: "openapi.yaml" },
+  searchOperation: "searchParts", detailOperation: "getPart", canonicalRoute: "/parts/{id}",
   fields: [
     { name: "price", type: "number", filterable: true, sortable: true, operators: ["eq", "lte", "gte"] },
     { name: "brand", type: "string", filterable: true, sortable: false, operators: ["eq", "contains"] },

@@ -61,6 +61,7 @@ function normalizeInput(
   if (input.sort && (!catalog.supportsSorting || !fields.get(input.sort.field)?.sortable || !["asc", "desc"].includes(input.sort.direction))) {
     throw new Error(`unsupported sort field "${input.sort.field}".`);
   }
+  if (input.cursor !== undefined && !catalog.supportsPagination) throw new Error("catalog does not support pagination.");
   if (input.cursor !== undefined && (typeof input.cursor !== "string" || input.cursor.length > MAX_CURSOR_LENGTH || /[\u0000-\u001f]/.test(input.cursor))) {
     throw new Error(`cursor must be at most ${MAX_CURSOR_LENGTH} safe characters.`);
   }

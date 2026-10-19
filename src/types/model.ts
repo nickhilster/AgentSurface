@@ -25,7 +25,8 @@ export type InspectionMethod =
   | "heuristic-inference"
   | "existing-agentsurface-model"
   | "owner-config"
-  | "schema-org-jsonld";
+  | "schema-org-jsonld"
+  | "openapi-contract";
 
 export interface ProvenanceRecord {
   subject: string; // e.g. "route:/about"
@@ -151,6 +152,9 @@ export interface CatalogRecord {
   entityKind: "product" | "service" | "content";
   scope: "public" | "unknown";
   source: CatalogSourceRef;
+  searchOperation: string | null;
+  detailOperation: string | null;
+  canonicalRoute: string;
   fields: CatalogField[];
   searchMode: "none" | "static-index" | "read-api";
   supportsQuery: boolean;

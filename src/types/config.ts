@@ -48,9 +48,9 @@ export interface CatalogConfig {
   id: string;
   entityKind: "product" | "service" | "content";
   scope: "public";
-  source: { kind: "openapi"; file: string };
-  searchOperation: string;
-  detailOperation: string;
+  source: { kind: "openapi"; file: string } | { kind: "static-jsonld" };
+  searchOperation?: string;
+  detailOperation?: string;
   fieldAllowlist: CatalogFieldConfig[];
   canonicalRoute: string;
   maxResults: number;

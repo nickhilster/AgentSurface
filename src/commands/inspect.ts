@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { NextAppRouterAdapter } from "../adapters/nextAppRouter.js";
 import { ViteStaticAdapter } from "../adapters/viteStatic.js";
+import { inspectCatalogs } from "../catalog/providers/openApiCatalogProvider.js";
 import { MODEL_VERSION, writeModelMeta } from "../lib/modelVersion.js";
 import type { CanonicalSiteModel, FrameworkAdapter, ProductRecord, ProvenanceRecord, RouteRecord } from "../types/model.js";
 
@@ -63,6 +64,7 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
       entities.push(...productsFromJsonLd(readFileSync(sourcePath, "utf-8"), sourceFile, route));
     }
   }
+  const catalogs = await inspectCatalogs(opts.repoRoot, config, unknowns, entities);
 
   if (!bestAdapter) {
     unknowns.push("No framework adapter matched this repository; routes/capabilities could not be inspected.");
@@ -89,7 +91,7 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
     },
     routes,
     entities,
-    catalogs: [],
+    catalogs,
     capabilities,
     constraints: [],
     provenance: [],

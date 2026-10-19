@@ -138,6 +138,8 @@ When dogfooding reaches the catalog and host-integration phases, use a public ca
 
 ### Discovery baseline
 
+Before any dynamic-catalog run, confirm the owner-declared OpenAPI contract points to a public HTTPS server and that the selected search/detail operations are unauthenticated GETs with no request body. Verify each allowlisted field and filter operator against the operation parameters and response schemas. Record unsupported schema features as unknowns. Static JSON-LD may create a bounded static index only when the site owner explicitly configures it; its price and availability freshness stay static or unknown, and JSON-LD alone is not evidence of live inventory.
+
 Record a representative set of user needs and the exact site-supported filters they map to. For each query, measure:
 
 - number of pages or records read;
