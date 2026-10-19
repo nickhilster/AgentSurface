@@ -46,6 +46,31 @@ folded in, per `OPERATE.md`'s handoff discipline:
 
 ---
 
+## Current implementation status (2026-10-19)
+
+This historical audit was rechecked against the current source before the follow-on
+implementation plans were written. Its §1.1–§1.8 findings describe resolved correctness
+debt, not open work. The evidence is:
+
+| Finding | Current status | Source evidence |
+|---|---|---|
+| §1.1 fabricated `/api/values` claim | Resolved: capability entries come from the model; no literal site route is emitted. | `src/commands/generate.ts`; `src/commands/generate.test.ts` “does not emit a hardcoded /api/values claim when the model has no capabilities” |
+| §1.2 `llms.txt` ownership | Resolved: generated outputs use `writeOwned`; human-owned files are preserved and reported as conflicts. | `src/lib/ownership.ts`; `src/lib/ownership.test.ts`; `src/commands/generate.test.ts` ownership case |
+| §1.3 output directory and server defaults | Resolved: generated outputs use `config.output.dir`; CLI requires an explicit `--server` for render-based generation. | `src/commands/generate.ts`; `src/cli/index.ts`; `src/commands/generate.test.ts` output-directory case |
+| §1.4 silent drift passes | Resolved: non-OK HTTP and vanished content boundaries fail; fetch errors are unchecked. | `src/commands/validate.ts`; `src/commands/validate.test.ts` HTTP, boundary, and unreachable-server cases |
+| §1.5 validation without a server | Resolved: absence of `--server` fails unless `--no-drift-check` explicitly acknowledges the omission. | `src/commands/validate.ts`; `src/commands/validate.test.ts` no-server cases |
+| §1.6 generation without infrastructure | Resolved: if every candidate route fails because the server cannot be reached, generation throws. | `src/commands/generate.ts`; `src/commands/generate.test.ts` unreachable-server case |
+| §1.7 discovery format | Resolved: output follows the llms.txt v2 link syntax and validation accepts a hand-authored conformant file. | `src/commands/generate.ts`, `src/commands/validate.ts`; corresponding `generate.test.ts` and `validate.test.ts` cases |
+| §1.8 model versioning | Resolved: `generate` and `validate` verify model metadata and give an actionable re-inspection error. | `src/lib/modelVersion.ts`; `src/lib/modelVersion.test.ts`; model-version cases in `generate.test.ts` and `validate.test.ts` |
+
+The older adapter-contract, content-boundary, model, package, and distribution proposals in
+this document remain historical design rationale. They are not authorization to implement
+the old architecture as written. Current scope and ordering come from `docs/SPEC.md`,
+`ROADMAP.md`, and the dated implementation plans under `docs/superpowers/plans/`. In
+particular, this follow-on plan does not replace the framework adapter or expand the
+framework matrix; it adds config validation, structured reports, dry-run output diffing,
+and tiered CI, then proceeds to bounded product discovery and a host-neutral handoff.
+
 ## 0. Research baseline
 
 Claims are marked **[verified]** where checked against a primary or named source during
