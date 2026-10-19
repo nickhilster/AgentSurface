@@ -58,6 +58,15 @@ describe("provider-neutral catalog contract", () => {
     expect(source.search).toHaveBeenLastCalledWith(expect.objectContaining({ market: "CA-ON" }));
   });
 
+  it("requiresAnExplicitMarketWhenTheCatalogContractRequiresIt", async () => {
+    const requiresMarket: CatalogRecord = { ...catalog, marketPolicy: { allowedMarkets: ["CA-ON"], locationRequired: true } };
+    const source = backend();
+    const provider = createCatalogProvider(requiresMarket, source, { allowedMarkets: ["CA-ON"] });
+    await expect(provider.search({ limit: 1 })).rejects.toThrow(/explicitly supplied market/);
+    await provider.search({ limit: 1, market: "CA-ON" });
+    expect(source.search).toHaveBeenCalledWith(expect.objectContaining({ market: "CA-ON" }));
+  });
+
   it("rejectsUnresolvableDestination", async () => {
     const provider = createCatalogProvider(catalog, backend([
       item({ id: "valid", canonicalPageUrl: "/parts/ok" }),

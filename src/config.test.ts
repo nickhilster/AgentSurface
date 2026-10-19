@@ -141,4 +141,17 @@ describe("AgentSurface output configuration", () => {
     writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({ version: "0.1", site: { name: "Legacy" } }));
     expect(loadConfig(repoRoot).catalogs).toEqual([]);
   });
+
+  it("requiresAnExplicitMarketAllowlistForRequiredLocation", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-market-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({
+      version: "0.1", catalogs: [{
+        id: "parts", entityKind: "product", scope: "public", source: { kind: "openapi", file: "openapi.yaml" },
+        searchOperation: "searchParts", detailOperation: "getPart", fieldAllowlist: [{ name: "price", sourceField: "price", type: "number", operators: ["eq"] }],
+        canonicalRoute: "/parts/{id}", maxResults: 10, freshness: { class: "unknown" }, marketPolicy: { allowedMarkets: [], locationRequired: true },
+      }],
+    }));
+    expect(() => loadConfig(repoRoot)).toThrow(/marketPolicy\.allowedMarkets/);
+  });
 });

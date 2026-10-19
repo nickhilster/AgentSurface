@@ -143,6 +143,8 @@ function validateMarketPolicy(value: unknown, path: string): NonNullable<Catalog
   assertAllowedKeys(entry, ["allowedMarkets", "locationRequired"], path);
   if (!Array.isArray(entry.allowedMarkets) || entry.allowedMarkets.some((market) => typeof market !== "string" || !/^[A-Z0-9-]{2,8}$/.test(market))) throw new Error(`${path}.allowedMarkets must be an array of explicit market codes.`);
   if (typeof entry.locationRequired !== "boolean") throw new Error(`${path}.locationRequired must be a boolean.`);
+  if (entry.locationRequired && entry.allowedMarkets.length === 0) throw new Error(`${path}.allowedMarkets must include an explicit value when locationRequired is true.`);
+  if (new Set(entry.allowedMarkets).size !== entry.allowedMarkets.length) throw new Error(`${path}.allowedMarkets must not contain duplicates.`);
   return { allowedMarkets: entry.allowedMarkets as string[], locationRequired: entry.locationRequired };
 }
 

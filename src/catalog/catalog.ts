@@ -68,6 +68,9 @@ function normalizeInput(
   if (input.market !== undefined && (!allowedMarkets.includes(input.market) || input.market.length > 32)) {
     throw new Error("market is not explicitly allowed for this catalog.");
   }
+  if (catalog.marketPolicy?.locationRequired && input.market === undefined) {
+    throw new Error("catalog requires an explicitly supplied market value.");
+  }
   return {
     ...(query ? { query } : {}),
     ...(normalizedFilters.length ? { filters: normalizedFilters } : {}),
