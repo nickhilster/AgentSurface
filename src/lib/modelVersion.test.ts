@@ -12,6 +12,7 @@ function fakeModel(): CanonicalSiteModel {
     site: { name: "Test", framework: "unknown", frameworkConfidence: 0, rootDir: "/", hostnames: [] },
     routes: [],
     entities: [],
+    catalogs: [],
     capabilities: [],
     constraints: [],
     provenance: [],
@@ -33,6 +34,19 @@ describe("model version guard", () => {
   it("passes when meta.json matches the current model version", () => {
     writeModelMeta(repoRoot, fakeModel());
     expect(() => assertModelVersion(repoRoot)).not.toThrow();
+  });
+
+  it("acceptsCurrentModelVersion02", () => {
+    expect(MODEL_VERSION).toBe("0.2");
+    writeModelMeta(repoRoot, { ...fakeModel(), version: "0.2" });
+    expect(() => assertModelVersion(repoRoot)).not.toThrow();
+  });
+
+  it("rejectsPreviousModelVersion01", () => {
+    const modelDir = join(repoRoot, ".agentsurface", "model");
+    mkdirSync(modelDir, { recursive: true });
+    writeFileSync(join(modelDir, "meta.json"), JSON.stringify({ version: "0.1", generatedAt: new Date().toISOString() }), "utf-8");
+    expect(() => assertModelVersion(repoRoot)).toThrow(/version "0\.1"/);
   });
 
   it("throws an actionable error when no meta.json exists (model never inspected, or predates version tracking)", () => {

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -31,5 +31,73 @@ describe("inspect owner route overrides", () => {
       source: ".agentsurface/config.yaml:routes.overrides",
       confidence: 1,
     }));
+  });
+
+  it("inspectWritesEmptyCatalogListWhenNoneConfigured", async () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-catalog-empty-"));
+    writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
+    writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+
+    const model = await runInspect({ repoRoot });
+
+    expect(model.catalogs).toEqual([]);
+    expect(model.entities).toEqual([]);
+    expect(JSON.parse(readFileSync(join(repoRoot, ".agentsurface", "model", "catalogs.json"), "utf-8"))).toEqual([]);
+    expect(existsSync(join(repoRoot, ".agentsurface", "model", "entities.json"))).toBe(true);
+  });
+
+  it("mapsSchemaOrgProductFieldsWithProvenance", async () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-jsonld-"));
+    writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
+    writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
+    mkdirSync(join(repoRoot, "public", "widget"), { recursive: true });
+    writeFileSync(join(repoRoot, "public", "widget", "index.html"), `<script type="application/ld+json">${JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "@id": "https://example.test/widget#product",
+      sku: "SKU-1",
+      name: "Widget",
+      description: "A public test product.",
+      brand: { "@type": "Brand", name: "Example" },
+      offers: { "@type": "Offer", price: "49.99", priceCurrency: "CAD", availability: "https://schema.org/InStock" },
+    })}</script><main>Widget</main>`);
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+
+    const model = await runInspect({ repoRoot });
+    const product = model.entities.find((entity) => entity.kind === "product");
+
+    expect(product).toMatchObject({
+      id: "sku:SKU-1",
+      kind: "product",
+      label: "Widget",
+      description: "A public test product.",
+      price: { amount: 49.99, currency: "CAD", kind: "offer" },
+      canonicalPageUrl: "/widget/",
+    });
+    expect(product && "attributes" in product ? product.attributes : []).toContainEqual(expect.objectContaining({ name: "brand", value: "Example", type: "string" }));
+    expect(product?.provenance).toContainEqual(expect.objectContaining({
+      claim: "product:name:Widget",
+      source: "public/widget/index.html",
+      method: "schema-org-jsonld",
+    }));
+  });
+
+  it("doesNotTreatJsonLdOfferAsLiveAvailability", async () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-jsonld-freshness-"));
+    writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
+    writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
+    mkdirSync(join(repoRoot, "public", "widget"), { recursive: true });
+    writeFileSync(join(repoRoot, "public", "widget", "index.html"), `<script type="application/ld+json">${JSON.stringify({
+      "@context": "https://schema.org", "@type": "Product", sku: "SKU-2", name: "Widget 2",
+      offers: { "@type": "Offer", price: "99.99", priceCurrency: "CAD", availability: "https://schema.org/InStock" },
+    })}</script><main>Widget 2</main>`);
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+
+    const model = await runInspect({ repoRoot });
+
+    expect(model.catalogs).toEqual([]);
+    const product = model.entities.find((entity) => entity.kind === "product");
+    expect(product && "availability" in product ? product.availability : undefined).toMatchObject({ value: "https://schema.org/InStock", freshness: { class: "unknown" } });
   });
 });

@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CanonicalSiteModel } from "../types/model.js";
 
-export const MODEL_VERSION: CanonicalSiteModel["version"] = "0.1";
+export const MODEL_VERSION: CanonicalSiteModel["version"] = "0.2";
 
 interface ModelMeta {
   version: string;

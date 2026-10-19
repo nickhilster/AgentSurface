@@ -37,11 +37,12 @@ describe("runGenerate", () => {
     const modelDir = join(repoRoot, ".agentsurface", "model");
     mkdirSync(modelDir, { recursive: true });
     const model: CanonicalSiteModel = {
-      version: "0.1",
+      version: "0.2",
       generatedAt: new Date().toISOString(),
       site: { name: "Test Site", framework: "next-app-router", frameworkConfidence: 1, rootDir: repoRoot, hostnames: [] },
       routes,
       entities: [],
+      catalogs: [],
       capabilities,
       constraints: [],
       provenance: [],

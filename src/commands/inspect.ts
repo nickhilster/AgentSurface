@@ -1,10 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { NextAppRouterAdapter } from "../adapters/nextAppRouter.js";
 import { ViteStaticAdapter } from "../adapters/viteStatic.js";
-import { writeModelMeta } from "../lib/modelVersion.js";
-import type { CanonicalSiteModel, FrameworkAdapter } from "../types/model.js";
+import { MODEL_VERSION, writeModelMeta } from "../lib/modelVersion.js";
+import type { CanonicalSiteModel, FrameworkAdapter, ProductRecord, ProvenanceRecord, RouteRecord } from "../types/model.js";
 
 export interface InspectOptions {
   repoRoot: string;
@@ -53,6 +53,16 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
   const capabilities = bestAdapter?.inspectCapabilities
     ? await bestAdapter.inspectCapabilities({ rootDir: opts.repoRoot })
     : [];
+  const entities: ProductRecord[] = [];
+  for (const route of routes) {
+    if (route.classification !== "public-static" || route.surfaceType !== "static-content") continue;
+    for (const sourceFile of route.sourceFiles) {
+      if (!sourceFile.startsWith("public/") || !/\.html?$/i.test(sourceFile)) continue;
+      const sourcePath = join(opts.repoRoot, sourceFile);
+      if (!existsSync(sourcePath)) continue;
+      entities.push(...productsFromJsonLd(readFileSync(sourcePath, "utf-8"), sourceFile, route));
+    }
+  }
 
   if (!bestAdapter) {
     unknowns.push("No framework adapter matched this repository; routes/capabilities could not be inspected.");
@@ -68,7 +78,7 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
   }
 
   const model: CanonicalSiteModel = {
-    version: "0.1",
+    version: MODEL_VERSION,
     generatedAt: new Date().toISOString(),
     site: {
       name: config.site.name,
@@ -78,7 +88,8 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
       hostnames: config.site.hostnames,
     },
     routes,
-    entities: [],
+    entities,
+    catalogs: [],
     capabilities,
     constraints: [],
     provenance: [],
@@ -97,6 +108,7 @@ function writeModel(repoRoot: string, model: CanonicalSiteModel): void {
   writeFileSync(join(modelDir, "site.json"), JSON.stringify(model.site, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "routes.json"), JSON.stringify(model.routes, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "entities.json"), JSON.stringify(model.entities, null, 2) + "\n", "utf-8");
+  writeFileSync(join(modelDir, "catalogs.json"), JSON.stringify(model.catalogs, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "capabilities.json"), JSON.stringify(model.capabilities, null, 2) + "\n", "utf-8");
   writeFileSync(join(modelDir, "constraints.json"), JSON.stringify(model.constraints, null, 2) + "\n", "utf-8");
   writeFileSync(
@@ -112,4 +124,85 @@ function writeModel(repoRoot: string, model: CanonicalSiteModel): void {
     ) + "\n",
     "utf-8"
   );
+}
+
+function productsFromJsonLd(html: string, source: string, route: RouteRecord): ProductRecord[] {
+  const products: ProductRecord[] = [];
+  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script\s*>/gi)) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(match[1]); } catch { continue; }
+    for (const candidate of flattenJsonLd(parsed)) {
+      if (!isSchemaOrgProduct(candidate)) continue;
+      const name = stringValue(candidate.name);
+      const sku = stringValue(candidate.sku);
+      const id = sku ? `sku:${sku}` : stringValue(candidate.mpn) ? `mpn:${stringValue(candidate.mpn)}` : null;
+      if (!name || !id) continue;
+      const provenance = (claim: string): ProvenanceRecord => ({
+        subject: `entity:${id}`,
+        claim,
+        source,
+        method: "schema-org-jsonld",
+        confidence: 1,
+      });
+      const attributes: ProductRecord["attributes"] = [];
+      const brand = typeof candidate.brand === "string" ? candidate.brand : isObject(candidate.brand) ? stringValue(candidate.brand.name) : null;
+      if (brand) attributes.push({ name: "brand", value: brand, type: "string", provenance: [provenance(`product:brand:${brand}`)] });
+      const offer = firstOffer(candidate.offers);
+      const priceAmount = offer ? numberValue(offer.price) : null;
+      const currency = offer ? stringValue(offer.priceCurrency) : null;
+      const freshness = { class: "unknown" as const };
+      const product: ProductRecord = {
+        id, kind: "product", label: name,
+        sourceFiles: [source],
+        provenance: [provenance(`product:name:${name}`)],
+        ...(stringValue(candidate.description) ? { description: stringValue(candidate.description)! } : {}),
+        attributes,
+        ...(priceAmount !== null && currency && /^[A-Z]{3}$/.test(currency) ? {
+          price: { amount: priceAmount, currency, kind: "offer", freshness, provenance: [provenance(`product:price:${priceAmount} ${currency}`)] },
+        } : {}),
+        ...(offer && stringValue(offer.availability) ? {
+          availability: { value: stringValue(offer.availability)!, freshness, provenance: [provenance(`product:availability:${stringValue(offer.availability)}`)] },
+        } : {}),
+        market: [],
+        locale: null,
+        canonicalPageUrl: route.canonicalUrl ?? route.path,
+      };
+      products.push(product);
+    }
+  }
+  return products;
+}
+
+function flattenJsonLd(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value.flatMap(flattenJsonLd);
+  if (!isObject(value)) return [];
+  const nested = Array.isArray(value["@graph"]) ? value["@graph"].flatMap(flattenJsonLd) : [];
+  return [value, ...nested];
+}
+
+function isSchemaOrgProduct(value: Record<string, unknown>): boolean {
+  const context = value["@context"];
+  const contextIsSchema = typeof context === "string" ? /(?:https?:)?\/\/(?:www\.)?schema\.org\/?$/i.test(context)
+    : Array.isArray(context) && context.some((item) => typeof item === "string" && /(?:https?:)?\/\/(?:www\.)?schema\.org\/?$/i.test(item));
+  const types = Array.isArray(value["@type"]) ? value["@type"] : [value["@type"]];
+  return contextIsSchema && types.some((type) => type === "Product");
+}
+
+function firstOffer(value: unknown): Record<string, unknown> | null {
+  const candidates = Array.isArray(value) ? value : [value];
+  return candidates.find(isObject) ?? null;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function numberValue(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim() && Number.isFinite(Number(value))) return Number(value);
+  return null;
 }

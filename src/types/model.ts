@@ -24,7 +24,8 @@ export type InspectionMethod =
   | "metadata-robots-noindex"
   | "heuristic-inference"
   | "existing-agentsurface-model"
-  | "owner-config";
+  | "owner-config"
+  | "schema-org-jsonld";
 
 export interface ProvenanceRecord {
   subject: string; // e.g. "route:/about"
@@ -70,11 +71,93 @@ export interface CapabilityRecord {
   confidence: Confidence;
 }
 
-export interface EntityRecord {
+export interface BaseEntityRecord {
   id: string;
-  kind: string; // e.g. "product", "post"
+  kind: string;
   label: string;
   sourceFiles: string[];
+  provenance: ProvenanceRecord[];
+}
+
+export interface ContentEntityRecord extends BaseEntityRecord {
+  kind: "post" | "service" | "content";
+}
+
+export type CatalogScalarType = "string" | "number" | "integer" | "boolean" | "date";
+export type CatalogOperator = "eq" | "contains" | "gt" | "gte" | "lt" | "lte" | "in";
+
+export interface ProductAttribute {
+  name: string;
+  value: string | number | boolean;
+  type: CatalogScalarType;
+  unit?: string;
+  provenance: ProvenanceRecord[];
+}
+
+export interface FreshnessRecord {
+  class: "live" | "periodic" | "static" | "unknown";
+  observedAt?: string;
+  maxAgeSeconds?: number;
+}
+
+export interface ProductPrice {
+  amount: number;
+  currency: string;
+  kind: "offer" | "msrp" | "starting" | "unknown";
+  conditions?: string[];
+  freshness: FreshnessRecord;
+  provenance: ProvenanceRecord[];
+}
+
+export interface ProductAvailability {
+  value: string;
+  freshness: FreshnessRecord;
+  provenance: ProvenanceRecord[];
+}
+
+export interface ProductRecord extends BaseEntityRecord {
+  kind: "product";
+  description?: string;
+  attributes: ProductAttribute[];
+  price?: ProductPrice;
+  availability?: ProductAvailability;
+  market: string[];
+  locale: string | null;
+  canonicalPageUrl: string | null;
+}
+
+export type EntityRecord = ContentEntityRecord | ProductRecord;
+
+export interface CatalogField {
+  name: string;
+  type: CatalogScalarType;
+  filterable: boolean;
+  sortable: boolean;
+  operators: CatalogOperator[];
+  unit?: string;
+  enum?: string[];
+}
+
+export interface CatalogSourceRef {
+  kind: "openapi" | "owner-config" | "static-jsonld";
+  file: string;
+  operationId?: string;
+  method?: "GET";
+  path?: string;
+}
+
+export interface CatalogRecord {
+  id: string;
+  entityKind: "product" | "service" | "content";
+  scope: "public" | "unknown";
+  source: CatalogSourceRef;
+  fields: CatalogField[];
+  searchMode: "none" | "static-index" | "read-api";
+  supportsQuery: boolean;
+  supportsSorting: boolean;
+  supportsPagination: boolean;
+  maxResults: number;
+  freshness: FreshnessRecord;
   provenance: ProvenanceRecord[];
 }
 
@@ -94,11 +177,12 @@ export interface SiteInfo {
 }
 
 export interface CanonicalSiteModel {
-  version: "0.1";
+  version: "0.2";
   generatedAt: string; // ISO timestamp
   site: SiteInfo;
   routes: RouteRecord[];
   entities: EntityRecord[];
+  catalogs: CatalogRecord[];
   capabilities: CapabilityRecord[];
   constraints: ConstraintRecord[];
   provenance: ProvenanceRecord[]; // top-level/site-wide provenance not tied to one route

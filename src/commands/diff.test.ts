@@ -25,7 +25,7 @@ describe("runDiff", () => {
     const model: CanonicalSiteModel = {
       version: MODEL_VERSION, generatedAt: new Date().toISOString(),
       site: { name: "Test", framework: "next-app-router", frameworkConfidence: 1, rootDir: repoRoot, hostnames: [] },
-      routes: [route], entities: [], capabilities: [], constraints: [], provenance: [], unknowns: [],
+      routes: [route], entities: [], catalogs: [], capabilities: [], constraints: [], provenance: [], unknowns: [],
     };
     mkdirSync(join(repoRoot, ".agentsurface", "model"), { recursive: true });
     writeModelMeta(repoRoot, model);
