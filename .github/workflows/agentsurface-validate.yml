@@ -1,0 +1,64 @@
+name: AgentSurface validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      preview_url:
+        description: Public preview URL for live content and route checks
+        required: false
+        type: string
+      strict_drift:
+        description: Fail the workflow when live content differs from generated Markdown
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - name: "Tier 1: inspect and validate repository surfaces"
+        shell: bash
+        run: |
+          if [ ! -f .agentsurface/config.yaml ]; then
+            echo "AgentSurface is not initialized in this repository; site validation is skipped."
+            exit 0
+          fi
+          npm run dev -- inspect --repo .
+          npm run dev -- validate --repo . --no-drift-check --format json
+      - name: "Tier 2: validate against an explicit preview"
+        id: tier2
+        if: ${{ success() && hashFiles('.agentsurface/config.yaml') != '' && (inputs.preview_url != '' || vars.AGENTSURFACE_PREVIEW_URL != '') }}
+        continue-on-error: true
+        env:
+          PREVIEW_URL: ${{ inputs.preview_url || vars.AGENTSURFACE_PREVIEW_URL }}
+        run: npm run dev -- validate --repo . --server "$PREVIEW_URL" --format json
+      - name: Apply live drift failure policy
+        if: ${{ always() && steps.tier2.outcome != 'skipped' }}
+        env:
+          STRICT_DRIFT: ${{ inputs.strict_drift || vars.AGENTSURFACE_STRICT_DRIFT || 'false' }}
+        shell: bash
+        run: |
+          if [ "$STRICT_DRIFT" = "true" ]; then
+            node scripts/evaluate-validation-report.mjs .agentsurface/validate-report.json --strict-drift
+          else
+            node scripts/evaluate-validation-report.mjs .agentsurface/validate-report.json
+          fi
+      - name: Upload structured validation report
+        if: ${{ always() && hashFiles('.agentsurface/validate-report.json') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: agentsurface-validation-report
+          path: .agentsurface/validate-report.json

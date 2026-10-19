@@ -1,8 +1,8 @@
 # AgentSurface
 
-AgentSurface adds an agent-facing interface layer to an existing website repository without replacing the human-facing site.
+AgentSurface adds a trustworthy agent-facing interface layer to an existing website repository without replacing the human-facing site.
 
-The project inspects a website repo, builds a trustworthy machine-readable model of what the site actually contains, generates agent-readable surfaces, advertises those surfaces for discovery, and validates them against the source so they do not silently drift.
+The project inspects a website repo, builds a provenance-backed model of its content, products, routes, and verified capabilities, generates lightweight discovery and selection surfaces, and validates them against their sources so they do not silently drift. For product catalogues, the goal is to help an agent find a relevant item quickly, then hand the exact first-party page to the user's agentic application so the user can inspect the real website experience there.
 
 ## Why this exists
 
@@ -12,15 +12,17 @@ AgentSurface treats that layer as generated infrastructure rather than hand-main
 
 ## Core principle
 
-> Do not rewrite the website for agents. Generate an authoritative agent-facing representation from the website that already exists.
+> Do not rewrite the website for agents. Generate an authoritative selection layer from what already exists, then let the user's agentic application open the real first-party page.
 
-## The three surfaces
+## The surfaces
 
 1. **Repo operating surface** — how coding agents should understand and safely modify the repository.
 2. **Public agent-readable surface** — machine-readable representations of public website content.
-3. **Discovery surface** — mechanisms such as `llms.txt` and alternate links that tell agents those representations exist.
+3. **Discovery surface** — mechanisms such as `llms.txt`, manifests, and alternate links that tell agents what data and routes exist.
+4. **Product selection surface** — bounded, source-backed catalog search and detail data that helps agents find items without traversing every page.
+5. **Experience handoff** — a host-mediated request to open the selected item's canonical first-party page inside the user's agentic application when supported.
 
-A fourth layer, **agent-operable capabilities**, may be added only when the underlying website genuinely exposes safe, verifiable actions. Agent-readable and agent-operable are not the same thing.
+Read-only search and retrieval are distinct from state-changing actions. Transactional capabilities require a separate safety design. Website metadata declares verified destinations; the agent host controls presentation and confirms where the page actually opened.
 
 ## Intended workflow
 
@@ -33,17 +35,19 @@ canonical site model
     ↓
 generate
     ├─ repo operating contract
-    ├─ page/content markdown alternates
-    ├─ llms.txt
-    ├─ discovery metadata
-    └─ structured manifests
+    ├─ content and entity representations
+    ├─ catalog search/detail contracts
+    ├─ discovery metadata and manifests
+    └─ canonical item-page destinations
     ↓
 validate
     ↓
-detect drift and false claims
+find likely items with bounded queries
+    ↓
+ask the user's agentic application to open the selected real first-party page
 ```
 
-## Planned CLI
+## CLI
 
 ```bash
 agentsurface init
@@ -53,7 +57,13 @@ agentsurface validate
 agentsurface diff
 ```
 
-The first milestone is deliberately narrower: dogfood the specification against one real website that has not yet been agentified, record what fails, then abstract only what survives contact with a real repo.
+The CLI provides repository initialization, inspection, generation, validation, and a
+non-mutating output preview with `diff`. Validation emits both text and JSON reports.
+The optional [GitHub Actions workflow](docs/CI.md) runs repository checks without a live
+site and enables preview-server checks only when an explicit URL is configured.
+
+Product catalog discovery and agentic page handoff build on this foundation and must be
+grounded in verified site data and actual host support.
 
 ## Status
 
@@ -64,6 +74,7 @@ See:
 - [`docs/SPEC.md`](docs/SPEC.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DOGFOODING.md`](docs/DOGFOODING.md)
+- [`docs/CI.md`](docs/CI.md)
 - [`ROADMAP.md`](ROADMAP.md)
 - [`OPERATE.md`](OPERATE.md)
 
