@@ -34,7 +34,7 @@ This roadmap sequences the product defined in [`docs/SPEC.md`](docs/SPEC.md). Ag
 - [x] Add GitHub Actions validation workflow and PR drift checks
 - [ ] Define and document framework, catalog, output, and host adapter contracts
 - [ ] Add versioned JSON manifest output for routes, entities, capabilities, and constraints
-- [ ] Reuse authoritative Schema.org / JSON-LD data where appropriate
+- [x] Reuse authoritative Schema.org / JSON-LD and OpenAPI data where appropriate
 - [ ] Improve content/entity extraction while retaining field-level provenance
 - [ ] Test ownership, privacy, route parity, and stale-output checks in CI
 - [ ] Dogfood on structurally different content sites and record adapter gaps
@@ -43,15 +43,15 @@ This roadmap sequences the product defined in [`docs/SPEC.md`](docs/SPEC.md). Ag
 
 Goal: let an agent search a large site catalogue for the user's stated need without window-shopping through product pages.
 
-- [ ] Extend the Canonical Site Model with product entities, catalogs, typed fields, price semantics, availability, market/location scope, and freshness
-- [ ] Define a bounded, typed, read-only catalog search/detail contract
-- [ ] Bind catalogs only to verified authoritative read APIs or explicitly scoped static indexes
+- [x] Extend the Canonical Site Model with product entities, catalogs, typed fields, price semantics, availability, market/location scope, and freshness
+- [x] Define a bounded, typed, read-only catalog search/detail contract
+- [x] Bind catalogs only to verified authoritative read APIs or explicitly scoped static indexes
 - [ ] Support declared query text, filters, operators, sorting, pagination, and result limits
-- [ ] Generate a lightweight selection manifest with canonical item-page destinations
+- [x] Generate a lightweight selection manifest with canonical item-page destinations
 - [ ] Include data provenance, freshness, unknowns, and price/availability conditions in results
-- [ ] Enforce public-field allowlists and optional/location-minimizing search policy
+- [x] Enforce public-field allowlists and optional/location-minimizing search policy
 - [ ] Validate field contracts, query bounds, result shape, freshness metadata, and entity-to-route parity
-- [ ] Provide an optional protocol projection (including MCP where justified) without making one protocol canonical
+- [x] Provide an optional MCP projection without making one protocol canonical
 - [ ] Dogfood on a real product catalogue with dynamic inventory and compare bounded search with page-by-page browsing
 
 ## v0.5 — Agentic experience handoff

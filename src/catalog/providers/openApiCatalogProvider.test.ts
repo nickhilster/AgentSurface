@@ -24,6 +24,7 @@ function apiSpec(overrides: Record<string, unknown> = {}) {
       "/parts": { get: {
         operationId: "searchParts",
         parameters: [
+          { name: "q", in: "query", schema: { type: "string" } },
           { name: "price", in: "query", schema: { type: "number" } },
           { name: "price_lte", in: "query", schema: { type: "number" } },
           { name: "limit", in: "query", schema: { type: "integer" } },
@@ -118,23 +119,31 @@ describe("declared OpenAPI catalog binding", () => {
   it("callsOnlyDeclaredReadOperations", async () => {
     await inspect(apiSpec());
     const calls: Array<{ url: string; method: string; redirect?: string; accept?: string }> = [];
+    const fixtureProducts = [
+      { id: "1", name: "Steel bolt", price: 8 },
+      { id: "2", name: "Steel nut", price: 12 },
+      { id: "3", name: "Plastic washer", price: 2 },
+    ];
     vi.stubGlobal("fetch", vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
       calls.push({ url, method: init?.method ?? "GET", redirect: init?.redirect, accept: new Headers(init?.headers).get("accept") ?? undefined });
-      const body = url.includes("/parts?")
-        ? { items: [{ id: "1", name: "Part one", price: 8 }], nextCursor: null }
-        : { id: "1", name: "Part one", price: 8 };
+      const parsedUrl = new URL(url);
+      const id = parsedUrl.pathname.split("/").pop();
+      const body = parsedUrl.pathname.endsWith("/parts")
+        ? { items: fixtureProducts.filter((product) => product.name.toLowerCase().includes(parsedUrl.searchParams.get("q")!.toLowerCase()) && product.price <= Number(parsedUrl.searchParams.get("price_lte"))), nextCursor: null }
+        : fixtureProducts.find((product) => product.id === id);
       return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
     }));
 
     const provider = await bindOpenApiCatalogProvider(repoRoot, loadConfig(repoRoot), "parts");
-    const results = await provider.search({ limit: 999, filters: [{ field: "price", operator: "lte", value: 10 }] });
+    const results = await provider.search({ query: "steel", limit: 999, filters: [{ field: "price", operator: "lte", value: 10 }] });
     const detail = await provider.getById("1");
 
-    expect(results.items[0]).toMatchObject({ id: "1", canonicalPageUrl: "/parts/1", fields: { price: 8 } });
-    expect(detail).toMatchObject({ id: "1", label: "Part one", canonicalPageUrl: "/parts/1" });
+    expect(results.items).toHaveLength(1);
+    expect(results.items[0]).toMatchObject({ id: "1", label: "Steel bolt", canonicalPageUrl: "/parts/1", fields: { price: 8 } });
+    expect(detail).toMatchObject({ id: "1", label: "Steel bolt", canonicalPageUrl: "/parts/1" });
     expect(calls).toEqual([
-      { url: "https://api.example.test/v1/parts?price_lte=10&limit=10", method: "GET", redirect: "error", accept: "application/json" },
+      { url: "https://api.example.test/v1/parts?q=steel&price_lte=10&limit=10", method: "GET", redirect: "error", accept: "application/json" },
       { url: "https://api.example.test/v1/parts/1", method: "GET", redirect: "error", accept: "application/json" },
     ]);
   });
