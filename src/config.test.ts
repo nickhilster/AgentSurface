@@ -75,4 +75,70 @@ describe("AgentSurface output configuration", () => {
     expect(config.site.hostnames).toEqual(["example.com"]);
     expect(config.routes.overrides).toEqual([{ path: "/about", classification: "public-static", contentBoundaryTag: "main" }]);
   });
+
+  it("configAllowsExplicitPublicCatalog", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-valid-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({
+      version: "0.1",
+      catalogs: [{
+        id: "parts", entityKind: "product", scope: "public",
+        source: { kind: "openapi", file: "openapi.yaml" },
+        searchOperation: "searchParts", detailOperation: "getPart",
+        fieldAllowlist: [{ name: "price", sourceField: "price", type: "number", operators: ["eq", "lte"] }],
+        canonicalRoute: "/parts/{id}", maxResults: 12, freshness: { class: "unknown" },
+      }],
+    }));
+    expect(loadConfig(repoRoot).catalogs[0]).toMatchObject({ id: "parts", scope: "public", maxResults: 12 });
+  });
+
+  it("configRejectsMissingSourceContract", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-source-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({
+      version: "0.1", catalogs: [{ id: "parts", entityKind: "product", scope: "public" }],
+    }));
+    expect(() => loadConfig(repoRoot)).toThrow(/catalogs\[0\]\.source/);
+  });
+
+  it("configRejectsPrivateOrUnallowlistedFields", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-unsafe-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({
+      version: "0.1", catalogs: [{
+        id: "parts", entityKind: "product", scope: "private",
+        source: { kind: "openapi", file: "openapi.yaml" },
+        searchOperation: "searchParts", detailOperation: "getPart",
+        fieldAllowlist: [{ name: "secret", sourceField: "secret", type: "string", operators: ["contains"] }],
+        canonicalRoute: "/parts/{id}", maxResults: 10, freshness: { class: "unknown" }, token: "secret",
+      }],
+    }));
+    expect(() => loadConfig(repoRoot)).toThrow(/catalogs\[0\]\.(scope|token)/);
+  });
+
+  it("rejectsUnsupportedCatalogOperatorsAndFieldProperties", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-fields-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    const config = {
+      version: "0.1", catalogs: [{
+        id: "parts", entityKind: "product", scope: "public",
+        source: { kind: "openapi", file: "openapi.yaml" }, searchOperation: "searchParts", detailOperation: "getPart",
+        fieldAllowlist: [{ name: "name", sourceField: "name", type: "string", operators: ["regex"] }],
+        canonicalRoute: "/parts/{id}", maxResults: 10, freshness: { class: "unknown" },
+      }],
+    };
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify(config));
+    expect(() => loadConfig(repoRoot)).toThrow(/fieldAllowlist\[0\]\.operators/);
+    (config.catalogs[0].fieldAllowlist[0] as Record<string, unknown>).isPrivate = true;
+    (config.catalogs[0].fieldAllowlist[0] as Record<string, unknown>).operators = ["eq"];
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify(config));
+    expect(() => loadConfig(repoRoot)).toThrow(/fieldAllowlist\[0\]\.isPrivate/);
+  });
+
+  it("legacyConfigStillLoads", () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-config-catalog-legacy-"));
+    mkdirSync(join(repoRoot, ".agentsurface"), { recursive: true });
+    writeFileSync(join(repoRoot, ".agentsurface", "config.yaml"), JSON.stringify({ version: "0.1", site: { name: "Legacy" } }));
+    expect(loadConfig(repoRoot).catalogs).toEqual([]);
+  });
 });

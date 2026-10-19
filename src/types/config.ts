@@ -1,3 +1,5 @@
+import type { CatalogOperator, CatalogScalarType, FreshnessRecord } from "./model.js";
+
 export interface AgentSurfaceConfig {
   version: "0.1";
   site: {
@@ -11,6 +13,8 @@ export interface AgentSurfaceConfig {
     /** Explicit owner decisions for ambiguous routes; inspection records owner provenance. */
     overrides?: RouteOverride[];
   };
+  /** Explicit owner declarations for public read-only catalog sources. */
+  catalogs: CatalogConfig[];
   output: {
     /**
      * Where AgentSurface writes artifacts into the target repo's own static/public
@@ -30,6 +34,30 @@ export interface AgentSurfaceConfig {
   };
 }
 
+export interface CatalogFieldConfig {
+  name: string;
+  sourceField: string;
+  type: CatalogScalarType;
+  operators: CatalogOperator[];
+  filterable?: boolean;
+  sortable?: boolean;
+  unit?: string;
+}
+
+export interface CatalogConfig {
+  id: string;
+  entityKind: "product" | "service" | "content";
+  scope: "public";
+  source: { kind: "openapi"; file: string };
+  searchOperation: string;
+  detailOperation: string;
+  fieldAllowlist: CatalogFieldConfig[];
+  canonicalRoute: string;
+  maxResults: number;
+  freshness: FreshnessRecord;
+  marketPolicy?: { allowedMarkets: string[]; locationRequired: boolean };
+}
+
 export interface RouteOverride {
   path: string;
   classification?: "public-static" | "public-dynamic" | "transactional" | "authenticated" | "private-internal" | "unsafe-to-expose" | "unknown";
@@ -46,6 +74,7 @@ export const DEFAULT_CONFIG: AgentSurfaceConfig = {
     exclude: [],
     overrides: [],
   },
+  catalogs: [],
   output: {
     dir: "public",
     markdownDir: undefined,

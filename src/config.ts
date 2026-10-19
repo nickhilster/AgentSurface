@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import yaml from "js-yaml";
-import { AgentSurfaceConfig, DEFAULT_CONFIG, RouteOverride } from "./types/config.js";
+import { AgentSurfaceConfig, CatalogConfig, CatalogFieldConfig, DEFAULT_CONFIG, RouteOverride } from "./types/config.js";
+import type { CatalogOperator, CatalogScalarType } from "./types/model.js";
 
 export function configPath(repoRoot: string): string {
   return join(repoRoot, ".agentsurface", "config.yaml");
@@ -26,6 +27,14 @@ export function validateConfig(value: unknown): AgentSurfaceConfig {
   const routesInput = optionalRecord(root.routes, "routes");
   const outputInput = optionalRecord(root.output, "output");
   const ownershipInput = optionalRecord(root.ownership, "ownership");
+  const catalogInput = root.catalogs ?? [];
+  if (!Array.isArray(catalogInput)) throw new Error("catalogs must be an array.");
+  const catalogs = catalogInput.map((entry, index) => validateCatalog(entry, index));
+  const catalogIds = new Set<string>();
+  for (const catalog of catalogs) {
+    if (catalogIds.has(catalog.id)) throw new Error(`catalogs contains duplicate id "${catalog.id}".`);
+    catalogIds.add(catalog.id);
+  }
 
   const name = siteInput.name ?? DEFAULT_CONFIG.site.name;
   if (typeof name !== "string") throw new Error("site.name must be a string.");
@@ -59,9 +68,88 @@ export function validateConfig(value: unknown): AgentSurfaceConfig {
     version: DEFAULT_CONFIG.version,
     site: { name, hostnames },
     routes: { exclude, overrides },
+    catalogs,
     output: { dir: outputDir, markdownDir },
     ownership: { overwriteHumanOwned },
   };
+}
+
+function validateCatalog(value: unknown, index: number): CatalogConfig {
+  const path = `catalogs[${index}]`;
+  const entry = asRecord(value, path);
+  assertAllowedKeys(entry, ["id", "entityKind", "scope", "source", "searchOperation", "detailOperation", "fieldAllowlist", "canonicalRoute", "maxResults", "freshness", "marketPolicy"], path);
+  const id = requiredString(entry.id, `${path}.id`, /^[a-z][a-z0-9-]{0,62}$/);
+  if (!["product", "service", "content"].includes(String(entry.entityKind))) throw new Error(`${path}.entityKind must be product, service, or content.`);
+  if (entry.scope !== "public") throw new Error(`${path}.scope must explicitly be public.`);
+  const source = asRecord(entry.source, `${path}.source`);
+  assertAllowedKeys(source, ["kind", "file"], `${path}.source`);
+  if (source.kind !== "openapi") throw new Error(`${path}.source.kind must be openapi.`);
+  const file = normalizeRelativeDirectory(source.file, `${path}.source.file`);
+  const searchOperation = requiredString(entry.searchOperation, `${path}.searchOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
+  const detailOperation = requiredString(entry.detailOperation, `${path}.detailOperation`, /^[A-Za-z][A-Za-z0-9_.-]*$/);
+  if (!Array.isArray(entry.fieldAllowlist) || entry.fieldAllowlist.length === 0) throw new Error(`${path}.fieldAllowlist must contain at least one explicitly allowlisted field.`);
+  const fieldAllowlist = entry.fieldAllowlist.map((field, fieldIndex) => validateCatalogField(field, `${path}.fieldAllowlist[${fieldIndex}]`));
+  if (new Set(fieldAllowlist.map((field) => field.name)).size !== fieldAllowlist.length) throw new Error(`${path}.fieldAllowlist contains duplicate names.`);
+  const canonicalRoute = validateCatalogRoute(entry.canonicalRoute, `${path}.canonicalRoute`);
+  if (!Number.isInteger(entry.maxResults) || (entry.maxResults as number) < 1 || (entry.maxResults as number) > 100) {
+    throw new Error(`${path}.maxResults must be an integer from 1 to 100.`);
+  }
+  const freshnessInput = asRecord(entry.freshness, `${path}.freshness`);
+  assertAllowedKeys(freshnessInput, ["class", "observedAt", "maxAgeSeconds"], `${path}.freshness`);
+  if (!["live", "periodic", "static", "unknown"].includes(String(freshnessInput.class))) throw new Error(`${path}.freshness.class must be live, periodic, static, or unknown.`);
+  if (freshnessInput.maxAgeSeconds !== undefined && (!Number.isInteger(freshnessInput.maxAgeSeconds) || (freshnessInput.maxAgeSeconds as number) < 0)) throw new Error(`${path}.freshness.maxAgeSeconds must be a non-negative integer.`);
+  const marketPolicy = entry.marketPolicy === undefined ? undefined : validateMarketPolicy(entry.marketPolicy, `${path}.marketPolicy`);
+  return {
+    id, entityKind: entry.entityKind as CatalogConfig["entityKind"], scope: "public",
+    source: { kind: "openapi", file }, searchOperation, detailOperation,
+    fieldAllowlist, canonicalRoute, maxResults: entry.maxResults as number,
+    freshness: {
+      class: freshnessInput.class as CatalogConfig["freshness"]["class"],
+      ...(typeof freshnessInput.observedAt === "string" ? { observedAt: freshnessInput.observedAt } : {}),
+      ...(typeof freshnessInput.maxAgeSeconds === "number" ? { maxAgeSeconds: freshnessInput.maxAgeSeconds } : {}),
+    },
+    ...(marketPolicy ? { marketPolicy } : {}),
+  };
+}
+
+function validateCatalogField(value: unknown, path: string): CatalogFieldConfig {
+  const entry = asRecord(value, path);
+  assertAllowedKeys(entry, ["name", "sourceField", "type", "operators", "filterable", "sortable", "unit"], path);
+  const name = requiredString(entry.name, `${path}.name`, /^[a-z][a-zA-Z0-9_]{0,62}$/);
+  const sourceField = requiredString(entry.sourceField, `${path}.sourceField`, /^[a-zA-Z_$][\w$.-]{0,127}$/);
+  const types: CatalogScalarType[] = ["string", "number", "integer", "boolean", "date"];
+  if (!types.includes(entry.type as CatalogScalarType)) throw new Error(`${path}.type is not a supported scalar type.`);
+  const operators: CatalogOperator[] = ["eq", "contains", "gt", "gte", "lt", "lte", "in"];
+  if (!Array.isArray(entry.operators) || entry.operators.some((operator) => !operators.includes(operator as CatalogOperator))) throw new Error(`${path}.operators contains an unsupported operator.`);
+  const filterable = entry.filterable ?? true;
+  const sortable = entry.sortable ?? false;
+  if (typeof filterable !== "boolean" || typeof sortable !== "boolean") throw new Error(`${path}.filterable and sortable must be booleans.`);
+  if (entry.unit !== undefined && (typeof entry.unit !== "string" || entry.unit.length > 32)) throw new Error(`${path}.unit must be a short string.`);
+  return { name, sourceField, type: entry.type as CatalogScalarType, operators: entry.operators as CatalogOperator[], filterable, sortable, ...(entry.unit ? { unit: entry.unit as string } : {}) };
+}
+
+function validateMarketPolicy(value: unknown, path: string): NonNullable<CatalogConfig["marketPolicy"]> {
+  const entry = asRecord(value, path);
+  assertAllowedKeys(entry, ["allowedMarkets", "locationRequired"], path);
+  if (!Array.isArray(entry.allowedMarkets) || entry.allowedMarkets.some((market) => typeof market !== "string" || !/^[A-Z0-9-]{2,8}$/.test(market))) throw new Error(`${path}.allowedMarkets must be an array of explicit market codes.`);
+  if (typeof entry.locationRequired !== "boolean") throw new Error(`${path}.locationRequired must be a boolean.`);
+  return { allowedMarkets: entry.allowedMarkets as string[], locationRequired: entry.locationRequired };
+}
+
+function validateCatalogRoute(value: unknown, path: string): string {
+  if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || /[%?#]/.test(value) || /(^|\/)\.{1,2}(\/|$)/.test(value)) {
+    throw new Error(`${path} must be a canonical same-site route template.`);
+  }
+  return value;
+}
+
+function requiredString(value: unknown, path: string, pattern: RegExp): string {
+  if (typeof value !== "string" || !pattern.test(value)) throw new Error(`${path} is missing or invalid.`);
+  return value;
+}
+
+function assertAllowedKeys(value: Record<string, unknown>, allowed: string[], path: string): void {
+  for (const key of Object.keys(value)) if (!allowed.includes(key)) throw new Error(`${path}.${key} is not supported.`);
 }
 
 function asRecord(value: unknown, path: string): Record<string, unknown> {
