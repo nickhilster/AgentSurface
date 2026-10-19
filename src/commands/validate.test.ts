@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,7 +7,7 @@ import { writeModelMeta } from "../lib/modelVersion.js";
 import { ownershipHeader } from "../lib/ownership.js";
 import { DEFAULT_CONFIG } from "../types/config.js";
 import type { CanonicalSiteModel, RouteRecord } from "../types/model.js";
-import { runValidate } from "./validate.js";
+import { runValidate, writeValidationReport } from "./validate.js";
 
 /**
  * Regression tests for the Phase 0 correctness debt recorded in
@@ -227,5 +227,43 @@ describe("runValidate", () => {
     await runValidate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
 
     expect(fetchMock).toHaveBeenCalledWith("http://localhost:3000/about/");
+  });
+
+  it("reportHasPassFailAndUncheckedRecords", async () => {
+    baseFixture();
+    setUpLlmsTxt("# Test Site\n\n- [Missing](/missing.md)\n");
+    const result = await runValidate({ repoRoot, acknowledgeNoServer: true });
+
+    expect(result.records.map((record) => record.status)).toEqual(expect.arrayContaining(["pass", "fail", "unchecked"]));
+    expect(result.records).toContainEqual(expect.objectContaining({ check: "capability-truthfulness", status: "unchecked" }));
+  });
+
+  it("reportIsValidJson", async () => {
+    baseFixture();
+    const result = await runValidate({ repoRoot, acknowledgeNoServer: true });
+    const report = writeValidationReport(repoRoot, result);
+
+    expect(JSON.parse(readFileSync(report.path, "utf-8")).records).toEqual(result.records);
+    expect(report.conflict).toBe(false);
+  });
+
+  it("reportMarksUnreachableRouteUnchecked", async () => {
+    baseFixture();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("failed https://user:secret@example.com/private?q=secret"); }));
+
+    const result = await runValidate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    expect(result.records).toContainEqual(expect.objectContaining({ check: "route-reachability", path: "/about", status: "unchecked" }));
+    expect(JSON.stringify(result.records)).not.toContain("secret");
+    expect(JSON.stringify(result.unchecked)).not.toContain("secret");
+  });
+
+  it("unreachableCanonicalRouteFails", async () => {
+    baseFixture();
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Not Found", { status: 404 })));
+
+    const result = await runValidate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
+
+    expect(result.failures.some((failure) => failure.check === "route-reachability" && failure.path === "/about")).toBe(true);
   });
 });

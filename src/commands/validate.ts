@@ -1,10 +1,11 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { loadConfig } from "../config.js";
 import { extractContentBoundary, htmlToMarkdown } from "../lib/htmlToMarkdown.js";
 import { assertModelVersion } from "../lib/modelVersion.js";
 import { OWNERSHIP_HEADER_PREFIX } from "../lib/ownership.js";
 import type { RouteRecord } from "../types/model.js";
+import type { ValidationRecord } from "../types/validation.js";
 
 export interface ValidateOptions {
   repoRoot: string;
@@ -20,7 +21,7 @@ export interface ValidateOptions {
 }
 
 export interface ValidationFailure {
-  check: "route-parity" | "discovery-integrity" | "ownership-safety" | "drift" | "capability-truthfulness";
+  check: "route-parity" | "discovery-integrity" | "ownership-safety" | "drift" | "route-reachability" | "capability-truthfulness";
   path: string;
   message: string;
 }
@@ -35,6 +36,7 @@ export interface UncheckedRecord {
 export interface ValidateResult {
   failures: ValidationFailure[];
   unchecked: UncheckedRecord[];
+  records: ValidationRecord[];
   checkedGeneratedFiles: number;
   checkedDiscoveryLinks: number;
 }
@@ -54,6 +56,27 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
   const unchecked: UncheckedRecord[] = [];
   const generatedDir = configMarkdownDir(opts.repoRoot);
   const generatedFiles = generatedDir && existsSync(generatedDir) ? listMarkdownFiles(generatedDir) : [];
+
+  // Route reachability is separate from content drift: all known, public, static page
+  // routes are checked, including interactive routes that have no generated Markdown.
+  const reachabilityRoutes = routes.filter((route) => route.contentType === "page" &&
+    (route.classification === "public-static" || route.classification === "public-dynamic") &&
+    route.dynamicSegments.length === 0);
+  if (opts.serverBaseUrl) {
+    for (const route of reachabilityRoutes) {
+      const url = new URL(route.path, opts.serverBaseUrl).toString();
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          failures.push({ check: "route-reachability", path: route.path, message: `canonical route returned HTTP ${response.status}` });
+        }
+      } catch {
+        unchecked.push({ check: "route-reachability", path: route.path, reason: "request could not be completed" });
+      }
+    }
+  } else {
+    unchecked.push({ check: "route-reachability", path: "*", reason: "live canonical-route reachability requires --server" });
+  }
 
   // --- Route parity + ownership safety ---
   for (const file of generatedFiles) {
@@ -163,7 +186,7 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
               const response = await fetch(localUrl);
               if (!response.ok) failures.push({ check: "discovery-integrity", path: route.path, message: "HTML-only route returned HTTP " + response.status });
             } catch (err) {
-              unchecked.push({ check: "discovery-integrity", path: route.path, reason: `could not reach ${localUrl}: ${err instanceof Error ? err.message : String(err)}` });
+              unchecked.push({ check: "discovery-integrity", path: route.path, reason: "request could not be completed; URL and error details omitted" });
             }
           }
         }
@@ -223,7 +246,7 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
         unchecked.push({
           check: "drift",
           path: routePath,
-          reason: `could not reach ${url}: ${err instanceof Error ? err.message : String(err)}`,
+          reason: "request could not be completed; URL and error details omitted",
         });
       }
     }
@@ -245,7 +268,43 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
     });
   }
 
-  return { failures, unchecked, checkedGeneratedFiles: generatedFiles.length, checkedDiscoveryLinks };
+  return { failures, unchecked, records: toValidationRecords(failures, unchecked), checkedGeneratedFiles: generatedFiles.length, checkedDiscoveryLinks };
+}
+
+const VALIDATION_CHECKS = ["route-parity", "discovery-integrity", "ownership-safety", "drift", "route-reachability", "capability-truthfulness"] as const;
+
+function toValidationRecords(failures: ValidationFailure[], unchecked: UncheckedRecord[]): ValidationRecord[] {
+  const records: ValidationRecord[] = [];
+  for (const check of VALIDATION_CHECKS) {
+    const checkFailures = failures.filter((failure) => failure.check === check);
+    const checkUnchecked = unchecked.filter((record) => record.check === check);
+    for (const failure of checkFailures) records.push({ check, path: failure.path, status: "fail", detail: failure.message });
+    for (const record of checkUnchecked) records.push({ check, path: record.path, status: "unchecked", detail: "check could not be completed; error details omitted" });
+    if (checkFailures.length === 0 && checkUnchecked.length === 0 && check === "capability-truthfulness") {
+      records.push({ check, path: "*", status: "unchecked", detail: "capability truthfulness is not implemented; no pass is claimed" });
+    } else if (checkFailures.length === 0 && checkUnchecked.length === 0) {
+      records.push({ check, path: "*", status: "pass", detail: "all applicable records passed" });
+    }
+  }
+  return records;
+}
+
+export function writeValidationReport(repoRoot: string, result: ValidateResult): { path: string; conflict: boolean } {
+  const dir = join(repoRoot, ".agentsurface");
+  const path = join(dir, "validate-report.json");
+  mkdirSync(dir, { recursive: true });
+  const report = {
+    version: "0.1",
+    generatedAt: new Date().toISOString(),
+    records: result.records,
+    summary: {
+      pass: result.records.filter((record) => record.status === "pass").length,
+      fail: result.records.filter((record) => record.status === "fail").length,
+      unchecked: result.records.filter((record) => record.status === "unchecked").length,
+    },
+  };
+  writeFileSync(path, JSON.stringify(report, null, 2) + "\n", "utf-8");
+  return { path, conflict: false };
 }
 
 function listMarkdownFiles(dir: string): string[] {

@@ -2,7 +2,7 @@
 import { runInit } from "../commands/init.js";
 import { runInspect } from "../commands/inspect.js";
 import { runGenerate } from "../commands/generate.js";
-import { runValidate } from "../commands/validate.js";
+import { runValidate, writeValidationReport } from "../commands/validate.js";
 
 function parseArgs(argv: string[]): { command: string; flags: Record<string, string> } {
   const [command, ...rest] = argv;
@@ -75,19 +75,34 @@ async function main(): Promise<void> {
     case "validate": {
       const serverBaseUrl = flags.server;
       const acknowledgeNoServer = flags["no-drift-check"] === "true";
-      const result = await runValidate({ repoRoot, serverBaseUrl, acknowledgeNoServer });
-      console.log(`Checked ${result.checkedGeneratedFiles} generated file(s), ${result.checkedDiscoveryLinks} discovery link(s).`);
-      if (result.unchecked.length > 0) {
-        console.log(`${result.unchecked.length} check(s) could not be completed:`);
-        for (const u of result.unchecked) console.log(`  [${u.check}] ${u.path}: ${u.reason}`);
-      }
-      if (result.failures.length === 0) {
-        console.log("No validation failures.");
-      } else {
-        console.log(`${result.failures.length} failure(s):`);
-        for (const f of result.failures) console.log(`  [${f.check}] ${f.path}: ${f.message}`);
+      const format = flags.format ?? "text";
+      if (format !== "text" && format !== "json") {
+        console.error(`Unsupported --format "${format}". Use "text" or "json".`);
         process.exitCode = 1;
+        break;
       }
+      const result = await runValidate({ repoRoot, serverBaseUrl, acknowledgeNoServer });
+      const report = writeValidationReport(repoRoot, result);
+      if (format === "json") {
+        console.log(JSON.stringify({
+          records: result.records,
+          checkedGeneratedFiles: result.checkedGeneratedFiles,
+          checkedDiscoveryLinks: result.checkedDiscoveryLinks,
+          reportPath: report.path,
+        }, null, 2));
+        if (result.failures.length > 0) process.exitCode = 1;
+        break;
+      }
+      console.log(`Checked ${result.checkedGeneratedFiles} generated file(s), ${result.checkedDiscoveryLinks} discovery link(s).`);
+      console.log(`JSON report written to ${report.path}.`);
+      const counts = {
+        pass: result.records.filter((record) => record.status === "pass").length,
+        fail: result.records.filter((record) => record.status === "fail").length,
+        unchecked: result.records.filter((record) => record.status === "unchecked").length,
+      };
+      console.log(`Validation records: ${counts.pass} pass, ${counts.fail} fail, ${counts.unchecked} unchecked.`);
+      for (const record of result.records) console.log(`  [${record.status}] ${record.check} ${record.path}: ${record.detail}`);
+      if (result.failures.length > 0) process.exitCode = 1;
       break;
     }
     case "diff": {
