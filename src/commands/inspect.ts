@@ -29,6 +29,27 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
 
   const unknowns: string[] = [];
   const routes = bestAdapter ? await bestAdapter.inspectRoutes({ rootDir: opts.repoRoot }) : [];
+  const normalizePath = (path: string) => path === "/" ? "/" : `/${path.replace(/^\/+|\/+$/g, "")}`;
+  for (const override of config.routes.overrides ?? []) {
+    const route = routes.find((candidate) => normalizePath(candidate.path) === override.path);
+    if (!route) {
+      unknowns.push(`configured route override ${override.path} did not match an inspected route.`);
+      continue;
+    }
+    if (override.classification !== undefined) route.classification = override.classification;
+    if (override.contentBoundaryTag !== undefined) route.contentBoundaryTag = override.contentBoundaryTag;
+    const claims = [
+      override.classification === undefined ? null : `classification:${override.classification}`,
+      override.contentBoundaryTag === undefined ? null : `content-boundary-tag:${override.contentBoundaryTag}`,
+    ].filter((claim): claim is string => claim !== null);
+    route.provenance.push({
+      subject: `route:${route.path}`,
+      claim: claims.join(","),
+      source: ".agentsurface/config.yaml:routes.overrides",
+      method: "owner-config",
+      confidence: 1,
+    });
+  }
   const capabilities = bestAdapter?.inspectCapabilities
     ? await bestAdapter.inspectCapabilities({ rootDir: opts.repoRoot })
     : [];

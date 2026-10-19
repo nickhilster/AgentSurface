@@ -23,7 +23,8 @@ export type InspectionMethod =
   | "auth-check-detected"
   | "metadata-robots-noindex"
   | "heuristic-inference"
-  | "existing-agentsurface-model";
+  | "existing-agentsurface-model"
+  | "owner-config";
 
 export interface ProvenanceRecord {
   subject: string; // e.g. "route:/about"

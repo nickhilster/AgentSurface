@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { basename } from "node:path";
-import { writeConfig } from "../config.js";
+import { validateConfig, writeConfig } from "../config.js";
 import { AgentSurfaceConfig, DEFAULT_CONFIG } from "../types/config.js";
 
 export interface InitOptions {
@@ -19,13 +19,13 @@ export function runInit(opts: InitOptions): { path: string; created: boolean } {
     );
   }
 
-  const config: AgentSurfaceConfig = {
+  const config = validateConfig({
     ...DEFAULT_CONFIG,
     site: {
       name: opts.siteName ?? basename(opts.repoRoot),
       hostnames: opts.hostnames ?? [],
     },
-  };
+  }) as AgentSurfaceConfig;
 
   return writeConfig(opts.repoRoot, config);
 }

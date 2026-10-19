@@ -8,6 +8,8 @@ export interface AgentSurfaceConfig {
   routes: {
     /** Route path prefixes to exclude from inspection/generation entirely, beyond adapter-detected private routes. */
     exclude: string[];
+    /** Explicit owner decisions for ambiguous routes; inspection records owner provenance. */
+    overrides?: RouteOverride[];
   };
   output: {
     /**
@@ -28,6 +30,12 @@ export interface AgentSurfaceConfig {
   };
 }
 
+export interface RouteOverride {
+  path: string;
+  classification?: "public-static" | "public-dynamic" | "transactional" | "authenticated" | "private-internal" | "unsafe-to-expose" | "unknown";
+  contentBoundaryTag?: string;
+}
+
 export const DEFAULT_CONFIG: AgentSurfaceConfig = {
   version: "0.1",
   site: {
@@ -36,6 +44,7 @@ export const DEFAULT_CONFIG: AgentSurfaceConfig = {
   },
   routes: {
     exclude: [],
+    overrides: [],
   },
   output: {
     dir: "public",
