@@ -164,6 +164,8 @@ For selected candidates, verify:
 - context passed to the destination contains no credentials, sensitive attributes, or raw conversation text;
 - authentication, browser security, and site permission flows remain under user control.
 
+Run the fake host-adapter conformance suite, then report its result separately from a real host test. The fake confirms only contract behavior; it does not establish that any desktop/mobile application supports embedded browsing.
+
 Run each case on supported desktop and mobile hosts where available. Record unsupported hosts as unsupported; do not generalize a successful integration to hosts that were not tested.
 
 ### Product dogfood report additions

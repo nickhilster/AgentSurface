@@ -124,7 +124,7 @@ interface HostAdapter {
 
 The interfaces are conceptual until implemented. Framework adapters establish repo facts. Catalog adapters bind verified site read sources. Host adapters receive a validated destination and ask the user's agentic application to present it. Website-side metadata cannot guarantee or command the host presentation.
 
-The handoff request includes a canonical URL or verified page reference and a preferred presentation of the current agent surface. The host result reports the actual outcome, such as current app, companion app, external browser, unsupported, denied, or error. The host may fall back to an external browser but must not claim in-app success unless it occurred.
+The handoff request includes a canonical URL or verified page reference and a preferred presentation of the current agent surface. Destination validation requires an HTTPS hostname from owner config and an inspected public HTML route. The host result reports the actual outcome, such as current app, companion app, external browser, unsupported, denied, or error. The host may fall back to an external browser but must not claim in-app success unless it occurred. See [HOST-ADAPTERS.md](HOST-ADAPTERS.md) for the host contract and conformance rules.
 
 Host integration is model-provider-neutral. MCP may carry search/detail tools or handoff requests in an implementation, but it is not the canonical model and not the only possible protocol.
 

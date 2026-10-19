@@ -47,7 +47,7 @@ describe("public catalog manifest", () => {
   it("manifestHasCanonicalDestinationRule", () => {
     setup();
     const result = runCatalogManifest(repoRoot);
-    expect(result.manifest.catalogs[0].itemPage).toEqual({ routeTemplate: "/parts/{id}", origin: "same-origin" });
+    expect(result.manifest.catalogs[0].itemPage).toEqual({ routeTemplate: "/parts/{id}", origin: "same-origin", pageKind: "canonical-html" });
     expect(result.manifest.catalogs[0].search.readOnly).toBe(true);
     expect(result.path.endsWith(join("public", ".well-known", "agentsurface.json"))).toBe(true);
   });

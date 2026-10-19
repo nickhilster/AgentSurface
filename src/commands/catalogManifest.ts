@@ -18,7 +18,7 @@ export interface CatalogManifestCatalog {
     sorting: boolean;
     freshness: CatalogRecord["freshness"];
   };
-  itemPage: { routeTemplate: string; origin: "same-origin" };
+  itemPage: { routeTemplate: string; origin: "same-origin"; pageKind: "canonical-html" };
   marketPolicy: { allowedMarkets: string[]; locationRequired: boolean } | null;
 }
 
@@ -59,7 +59,7 @@ export function projectCatalogManifest(catalogs: CatalogRecord[], generatedAt = 
         sorting: catalog.supportsSorting,
         freshness: catalog.freshness,
       },
-      itemPage: { routeTemplate: catalog.canonicalRoute, origin: "same-origin" },
+      itemPage: { routeTemplate: catalog.canonicalRoute, origin: "same-origin", pageKind: "canonical-html" },
       marketPolicy: catalog.marketPolicy ?? null,
     })),
   };

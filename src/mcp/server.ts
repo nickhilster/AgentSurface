@@ -1,6 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod/v4";
 import type { CatalogProvider, CatalogSearchResponse } from "../catalog/types.js";
+import type { AgentSurfaceConfig } from "../types/config.js";
+import type { RouteRecord } from "../types/model.js";
+import { resolveCanonicalDestination } from "../lib/destinations.js";
+import { createPendingHandoffRequest } from "../handoff/handoff.js";
+
+export interface HandoffTarget {
+  config: AgentSurfaceConfig;
+  routes: RouteRecord[];
+}
 
 const scalar = z.union([z.string().max(256), z.number().finite(), z.boolean()]);
 const filter = z.object({
@@ -9,7 +18,7 @@ const filter = z.object({
   value: z.union([scalar, z.array(scalar).min(1).max(50)]),
 });
 
-export function createCatalogMcpServer(providers: Map<string, CatalogProvider>): McpServer {
+export function createCatalogMcpServer(providers: Map<string, CatalogProvider>, handoffTargets: Map<string, HandoffTarget> = new Map()): McpServer {
   if (providers.size === 0) throw new Error("No verified public catalogs are available. Run agentsurface inspect and configure a catalog first.");
   const server = new McpServer({ name: "agentsurface-catalog", version: "0.2.0" });
   server.registerTool("search_catalog", {
@@ -48,6 +57,26 @@ export function createCatalogMcpServer(providers: Map<string, CatalogProvider>):
       return item ? structuredResult({ item }, { item }) : toolError(`Catalog item "${id}" was not found.`);
     } catch (error) {
       return toolError(error instanceof Error ? error.message : "Catalog item retrieval failed.");
+    }
+  });
+  if (handoffTargets.size > 0) server.registerTool("resolve_item_page", {
+    title: "Resolve canonical item page",
+    description: "Read-only preparation of a pending request for the user's host to present this exact canonical first-party HTML page. This tool does not open a browser or claim that navigation occurred.",
+    inputSchema: z.object({ catalogId: z.string().min(1).max(63), id: z.string().min(1).max(256) }),
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  }, async ({ catalogId, id }) => {
+    const provider = providers.get(catalogId);
+    const target = handoffTargets.get(catalogId);
+    if (!provider || !target) return toolError(`Unknown or unavailable catalog "${catalogId}".`);
+    try {
+      const item = await provider.getById(id);
+      if (!item) return toolError(`Catalog item "${id}" was not found.`);
+      const resolution = resolveCanonicalDestination(item, target.config, target.routes);
+      if (!resolution.valid) return toolError(resolution.reason);
+      const pending = createPendingHandoffRequest(resolution);
+      return structuredResult(pending, pending);
+    } catch (error) {
+      return toolError(error instanceof Error ? error.message : "Canonical item page could not be resolved.");
     }
   });
   return server;

@@ -32,7 +32,7 @@ This roadmap sequences the product defined in [`docs/SPEC.md`](docs/SPEC.md). Ag
 
 - [x] Implement `agentsurface diff` for model/output preview before mutation
 - [x] Add GitHub Actions validation workflow and PR drift checks
-- [ ] Define and document framework, catalog, output, and host adapter contracts
+- [x] Define and document framework, catalog, output, and host adapter contracts
 - [ ] Add versioned JSON manifest output for routes, entities, capabilities, and constraints
 - [x] Reuse authoritative Schema.org / JSON-LD and OpenAPI data where appropriate
 - [ ] Improve content/entity extraction while retaining field-level provenance
@@ -58,13 +58,13 @@ Goal: let an agent search a large site catalogue for the user's stated need with
 
 Goal: after finding an item, let the user inspect the real first-party page from the agentic application they already use.
 
-- [ ] Specify a host-neutral experience handoff contract for a canonical destination or verified page reference
+- [x] Specify a host-neutral experience handoff contract for a canonical destination or verified page reference
 - [ ] Implement host adapters separately from website/framework adapters
 - [ ] Open the real first-party page in the current agentic application's embedded or in-app browser when supported
 - [ ] Report the actual presentation outcome; do not claim embedded support from website metadata alone
-- [ ] Provide a validated external-browser fallback when the host cannot present the page in-app
-- [ ] Preserve item identity and only supported, non-sensitive context through the handoff
-- [ ] Validate canonical origin, public-route status, route resolution, and safe URL construction
+- [x] Provide a validated external-browser fallback when the host cannot present the page in-app
+- [x] Preserve item identity and only supported, non-sensitive context through the handoff
+- [x] Validate canonical origin, public-route status, route resolution, and safe URL construction
 - [ ] Demonstrate working flows on supported desktop and mobile agentic environments
 - [ ] Dogfood handoff from natural-language request through search, shortlist, selection, and in-agent page viewing
 

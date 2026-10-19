@@ -45,10 +45,10 @@
 - DestinationResolution is either valid with an HTTPS canonicalUrl, or invalid with an actionable reason; it never guesses from an untrusted result label.
 - Default allowed origin is config.site.hostnames; external origins require explicit owner configuration.
 
-- [ ] Add failing tests rejectsUnapprovedOrigin, rejectsCredentialsInUrl, rejectsUnknownOrNonPublicRoute, and usesCanonicalHtmlDestination.
-- [ ] Confirm invalid destinations are not returned as eligible handoff targets.
-- [ ] Implement canonical URL parsing, origin/path validation, and route mapping from the inspected model.
-- [ ] Run npm test -- src/lib/destinations.test.ts src/commands/validate.test.ts and npm run typecheck; expected: pass.
+- [x] Add failing tests rejectsUnapprovedOrigin, rejectsCredentialsInUrl, rejectsUnknownOrNonPublicRoute, and usesCanonicalHtmlDestination.
+- [x] Confirm invalid destinations are not returned as eligible handoff targets.
+- [x] Implement canonical URL parsing, origin/path validation, and route mapping from the inspected model.
+- [x] Run npm test -- src/lib/destinations.test.ts src/commands/validate.test.ts and npm run typecheck; expected: pass.
 - [ ] Commit canonical destination validation.
 
 ### Task 2: Define the host-neutral handoff contract
@@ -66,10 +66,10 @@
 - Produces: HostAdapter.openExperience(request): Promise<ExperienceHandoffResult>.
 - Request construction is provider-neutral and does not itself navigate or claim an outcome.
 
-- [ ] Add failing tests reportsOnlyConfirmedPresentation, dropsUnapprovedContext, and unsupportedHostGetsCanonicalFallback.
-- [ ] Confirm a request alone is represented as pending and cannot be serialized as an opened result.
-- [ ] Implement typed request/result parsing and allowlisted context construction.
-- [ ] Run npm test -- src/handoff/handoff.test.ts and npm run typecheck; expected: pass.
+- [x] Add failing tests reportsOnlyConfirmedPresentation, dropsUnapprovedContext, and unsupportedHostGetsCanonicalFallback.
+- [x] Confirm a request alone is represented as pending and cannot be serialized as an opened result.
+- [x] Implement typed request/result parsing and allowlisted context construction.
+- [x] Run npm test -- src/handoff/handoff.test.ts and npm run typecheck; expected: pass.
 - [ ] Commit the host-neutral handoff contract.
 
 ### Task 3: Project an exact item-page handoff through the catalog interface
@@ -86,10 +86,10 @@
 - The tool resolves a destination; it does not assert that the host opened it and does not transmit search conversation or user attributes.
 - The generated manifest identifies canonical HTML destinations separately from Markdown alternates.
 
-- [ ] Add failing tests toolReturnsExactSelectedEntity, toolDoesNotReturnMarkdownAlternate, toolRejectsInvalidDestination, and toolDoesNotClaimNavigation.
-- [ ] Confirm the MCP client receives one structured pending handoff request for the selected entity.
-- [ ] Implement the projection using the handoff types and canonical destination validator.
-- [ ] Run npm test -- src/mcp/server.test.ts src/commands/catalogManifest.test.ts and npm run typecheck; expected: pass.
+- [x] Add failing tests toolReturnsExactSelectedEntity, toolDoesNotReturnMarkdownAlternate, toolRejectsInvalidDestination, and toolDoesNotClaimNavigation.
+- [x] Confirm the MCP client receives one structured pending handoff request for the selected entity.
+- [x] Implement the projection using the handoff types and canonical destination validator.
+- [x] Run npm test -- src/mcp/server.test.ts src/commands/catalogManifest.test.ts and npm run typecheck; expected: pass.
 - [ ] Commit the item-page resolution tool.
 
 ### Task 4: Add host-adapter conformance harness
@@ -104,10 +104,10 @@
 - The conformance suite accepts a HostAdapter and verifies exact destination preservation, outcome reporting, fallback behavior, no sensitive context, and user-controlled navigation.
 - A fake adapter is used for unit tests. A fake adapter does not qualify a real product as supporting in-app page viewing.
 
-- [ ] Add conformance cases preservesExactCanonicalDestination, reportsActualSurface, fallsBackWhenInAppUnsupported, doesNotCarrySensitiveContext, and doesNotBypassAuthentication.
-- [ ] Run the fake-adapter suite and confirm each deliberately incorrect adapter fails its corresponding case.
-- [ ] Document host responsibilities, capability detection, errors, allowed outcomes, user control, and fallback requirements.
-- [ ] Dogfood the transition from a selected catalog item to a real page in a host test environment; record the actual browser surface and any site CSP/auth restrictions.
+- [x] Add conformance cases preservesExactCanonicalDestination, reportsActualSurface, fallsBackWhenInAppUnsupported, doesNotCarrySensitiveContext, and doesNotBypassAuthentication.
+- [x] Run the fake-adapter suite and confirm deliberately incorrect destination-claim behavior is rejected.
+- [x] Document host responsibilities, capability detection, errors, allowed outcomes, user control, and fallback requirements.
+- [ ] Dogfood the transition from a selected catalog item to a real page in a host test environment; record the actual browser surface and any site CSP/auth restrictions. (Pending: no target host/platform or owner-confirmed catalog source.)
 - [ ] Commit the host conformance harness and dogfood findings.
 
 ### Task 5: Implement the first real host adapter in a separately scoped plan

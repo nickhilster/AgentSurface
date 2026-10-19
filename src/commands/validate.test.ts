@@ -267,4 +267,34 @@ describe("runValidate", () => {
 
     expect(result.failures.some((failure) => failure.check === "route-reachability" && failure.path === "/about")).toBe(true);
   });
+
+  it("validatesProductDestinationAgainstAnInspectedPublicRoute", async () => {
+    const productRoute: RouteRecord = { ...aboutRoute, path: "/products/1", sourceFiles: ["public/products/1/index.html"] };
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["shop.example.test"] } });
+    setUpModel([productRoute]);
+    writeFileSync(join(repoRoot, ".agentsurface", "model", "entities.json"), JSON.stringify([{
+      id: "sku:1", kind: "product", label: "Widget", sourceFiles: ["public/products/1/index.html"], provenance: [],
+      attributes: [], market: [], locale: null, canonicalPageUrl: "/products/1",
+    }]));
+    setUpLlmsTxt("# Test Site\n");
+
+    const result = await runValidate({ repoRoot, acknowledgeNoServer: true });
+
+    expect(result.failures.some((failure) => failure.check === "catalog-destination")).toBe(false);
+    expect(result.records).toContainEqual(expect.objectContaining({ check: "catalog-destination", status: "pass" }));
+  });
+
+  it("failsCatalogDestinationWhenTheProductRouteIsNotInspected", async () => {
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["shop.example.test"] } });
+    setUpModel([aboutRoute]);
+    writeFileSync(join(repoRoot, ".agentsurface", "model", "entities.json"), JSON.stringify([{
+      id: "sku:1", kind: "product", label: "Widget", sourceFiles: [], provenance: [], attributes: [], market: [], locale: null,
+      canonicalPageUrl: "/products/1",
+    }]));
+    setUpLlmsTxt("# Test Site\n");
+
+    const result = await runValidate({ repoRoot, acknowledgeNoServer: true });
+
+    expect(result.failures).toContainEqual(expect.objectContaining({ check: "catalog-destination", path: "entity:sku:1" }));
+  });
 });

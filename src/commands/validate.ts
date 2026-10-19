@@ -4,7 +4,8 @@ import { loadConfig } from "../config.js";
 import { extractContentBoundary, htmlToMarkdown } from "../lib/htmlToMarkdown.js";
 import { assertModelVersion } from "../lib/modelVersion.js";
 import { OWNERSHIP_HEADER_PREFIX } from "../lib/ownership.js";
-import type { RouteRecord } from "../types/model.js";
+import { resolveCanonicalDestination } from "../lib/destinations.js";
+import type { EntityRecord, RouteRecord } from "../types/model.js";
 import type { ValidationRecord } from "../types/validation.js";
 
 export interface ValidateOptions {
@@ -21,7 +22,7 @@ export interface ValidateOptions {
 }
 
 export interface ValidationFailure {
-  check: "route-parity" | "discovery-integrity" | "ownership-safety" | "drift" | "route-reachability" | "capability-truthfulness";
+  check: "route-parity" | "discovery-integrity" | "ownership-safety" | "drift" | "route-reachability" | "catalog-destination" | "capability-truthfulness";
   path: string;
   message: string;
 }
@@ -42,7 +43,7 @@ export interface ValidateResult {
 }
 
 export async function runValidate(opts: ValidateOptions): Promise<ValidateResult> {
-  loadConfig(opts.repoRoot); // ensures init has run; throws otherwise
+  const config = loadConfig(opts.repoRoot); // ensures init has run; throws otherwise
   assertModelVersion(opts.repoRoot);
 
   const modelPath = join(opts.repoRoot, ".agentsurface", "model", "routes.json");
@@ -56,6 +57,21 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
   const unchecked: UncheckedRecord[] = [];
   const generatedDir = configMarkdownDir(opts.repoRoot);
   const generatedFiles = generatedDir && existsSync(generatedDir) ? listMarkdownFiles(generatedDir) : [];
+
+  const entitiesPath = join(opts.repoRoot, ".agentsurface", "model", "entities.json");
+  const entities: EntityRecord[] = existsSync(entitiesPath) ? JSON.parse(readFileSync(entitiesPath, "utf-8")) : [];
+  const products = entities.filter((entity) => entity.kind === "product");
+  for (const product of products) {
+    const destination = resolveCanonicalDestination(product, config, routes);
+    if (!destination.valid) failures.push({ check: "catalog-destination", path: `entity:${product.id}`, message: destination.reason });
+  }
+  const catalogsPath = join(opts.repoRoot, ".agentsurface", "model", "catalogs.json");
+  const catalogs = existsSync(catalogsPath) ? JSON.parse(readFileSync(catalogsPath, "utf-8")) as Array<{ id: string; searchMode: string }> : [];
+  for (const catalog of catalogs) {
+    if (catalog.searchMode === "read-api" && products.length === 0) {
+      unchecked.push({ check: "catalog-destination", path: `catalog:${catalog.id}`, reason: "live item destinations require a source response" });
+    }
+  }
 
   // Route reachability is separate from content drift: all known, public, static page
   // routes are checked, including interactive routes that have no generated Markdown.
@@ -110,7 +126,6 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
   }
 
   // --- Discovery integrity: llms.txt links must resolve to real generated files ---
-  const config = loadConfig(opts.repoRoot);
   const llmsTxtPath = join(opts.repoRoot, config.output.dir, "llms.txt");
   let checkedDiscoveryLinks = 0;
   if (existsSync(llmsTxtPath)) {
@@ -271,7 +286,7 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
   return { failures, unchecked, records: toValidationRecords(failures, unchecked), checkedGeneratedFiles: generatedFiles.length, checkedDiscoveryLinks };
 }
 
-const VALIDATION_CHECKS = ["route-parity", "discovery-integrity", "ownership-safety", "drift", "route-reachability", "capability-truthfulness"] as const;
+const VALIDATION_CHECKS = ["route-parity", "discovery-integrity", "ownership-safety", "drift", "route-reachability", "catalog-destination", "capability-truthfulness"] as const;
 
 function toValidationRecords(failures: ValidationFailure[], unchecked: UncheckedRecord[]): ValidationRecord[] {
   const records: ValidationRecord[] = [];

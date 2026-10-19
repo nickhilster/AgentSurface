@@ -66,8 +66,11 @@ site and enables preview-server checks only when an explicit URL is configured.
 
 `catalog-manifest` writes a compact public catalog descriptor to
 `<output.dir>/.well-known/agentsurface.json`, preserving human-owned files. The optional
-`agentsurface-mcp` stdio server exposes only the read-only `search_catalog` and
-`get_catalog_item` tools over inspected public catalogs. Configure a public OpenAPI GET
+`agentsurface-mcp` stdio server exposes read-only `search_catalog` and
+`get_catalog_item` tools over inspected public catalogs, plus `resolve_item_page` when
+an inspected public route and owner hostname are available. The page resolver returns
+a pending canonical destination request; it does not open a browser or claim navigation.
+Configure a public OpenAPI GET
 contract or explicitly opt into a static JSON-LD index, then run `agentsurface inspect`
 before publishing the manifest or starting the MCP server. Search returns the real
 first-party item route; opening that route remains the agent host's responsibility.
@@ -77,6 +80,9 @@ TypeScript 6+ to build; the core provider interfaces do not depend on MCP.
 The dynamic OpenAPI adapter currently supports documented filter fields and bounded
 search/detail calls; it reports dynamic sorting as unsupported until the source declares
 an unambiguous sort mapping. Neither JSON-LD nor a model record proves live inventory.
+Host-specific browser presentation is kept behind the [host adapter contract](docs/HOST-ADAPTERS.md);
+this repository does not claim that a particular agentic app or desktop/mobile platform
+has an embedded browsing adapter.
 
 ## Status
 
