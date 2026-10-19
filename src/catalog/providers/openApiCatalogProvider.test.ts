@@ -117,10 +117,10 @@ describe("declared OpenAPI catalog binding", () => {
 
   it("callsOnlyDeclaredReadOperations", async () => {
     await inspect(apiSpec());
-    const calls: Array<{ url: string; method: string }> = [];
+    const calls: Array<{ url: string; method: string; redirect?: string; accept?: string }> = [];
     vi.stubGlobal("fetch", vi.fn(async (input: unknown, init?: RequestInit) => {
       const url = String(input);
-      calls.push({ url, method: init?.method ?? "GET" });
+      calls.push({ url, method: init?.method ?? "GET", redirect: init?.redirect, accept: new Headers(init?.headers).get("accept") ?? undefined });
       const body = url.includes("/parts?")
         ? { items: [{ id: "1", name: "Part one", price: 8 }], nextCursor: null }
         : { id: "1", name: "Part one", price: 8 };
@@ -134,8 +134,8 @@ describe("declared OpenAPI catalog binding", () => {
     expect(results.items[0]).toMatchObject({ id: "1", canonicalPageUrl: "/parts/1", fields: { price: 8 } });
     expect(detail).toMatchObject({ id: "1", label: "Part one", canonicalPageUrl: "/parts/1" });
     expect(calls).toEqual([
-      { url: "https://api.example.test/v1/parts?price_lte=10&limit=10", method: "GET" },
-      { url: "https://api.example.test/v1/parts/1", method: "GET" },
+      { url: "https://api.example.test/v1/parts?price_lte=10&limit=10", method: "GET", redirect: "error", accept: "application/json" },
+      { url: "https://api.example.test/v1/parts/1", method: "GET", redirect: "error", accept: "application/json" },
     ]);
   });
 });

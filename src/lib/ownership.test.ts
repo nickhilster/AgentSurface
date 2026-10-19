@@ -45,4 +45,12 @@ describe("writeOwned", () => {
     expect(result).toEqual({ written: true, conflict: false });
     expect(readFileSync(target, "utf-8")).toContain("generated");
   });
+
+  it("recognizes a valid JSON ownership marker without breaking JSON syntax", () => {
+    const target = join(dir, "manifest.json");
+    writeFileSync(target, JSON.stringify({ _agentSurface: { generatedBy: "AgentSurface" }, version: "1" }), "utf-8");
+    const result = writeOwned(target, JSON.stringify({ _agentSurface: { generatedBy: "AgentSurface" }, version: "2" }), false);
+    expect(result).toEqual({ written: true, conflict: false });
+    expect(JSON.parse(readFileSync(target, "utf-8")).version).toBe("2");
+  });
 });

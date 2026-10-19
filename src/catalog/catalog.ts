@@ -24,7 +24,7 @@ export function createCatalogProvider(
       return {
         items,
         nextCursor: typeof result.nextCursor === "string" && result.nextCursor.length <= MAX_CURSOR_LENGTH ? result.nextCursor : null,
-        freshness: catalog.freshness,
+        freshness: observedFreshness(catalog.freshness),
       };
     },
     async getById(id) {
@@ -125,4 +125,10 @@ function validFieldValue(type: CatalogScalarType, value: unknown): value is Excl
 function isSafePath(value: unknown): value is string {
   return typeof value === "string" && value.startsWith("/") && !value.startsWith("//") &&
     !/[\\?#%\s\u0000-\u001f]/.test(value) && !/(^|\/)\.{1,2}(\/|$)/.test(value);
+}
+
+function observedFreshness(freshness: CatalogRecord["freshness"]): CatalogRecord["freshness"] {
+  return freshness.class === "live" || freshness.class === "periodic"
+    ? { ...freshness, observedAt: new Date().toISOString() }
+    : freshness;
 }

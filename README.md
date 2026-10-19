@@ -55,6 +55,8 @@ agentsurface inspect
 agentsurface generate
 agentsurface validate
 agentsurface diff
+agentsurface catalog-manifest
+agentsurface-mcp
 ```
 
 The CLI provides repository initialization, inspection, generation, validation, and a
@@ -62,8 +64,19 @@ non-mutating output preview with `diff`. Validation emits both text and JSON rep
 The optional [GitHub Actions workflow](docs/CI.md) runs repository checks without a live
 site and enables preview-server checks only when an explicit URL is configured.
 
-Product catalog discovery and agentic page handoff build on this foundation and must be
-grounded in verified site data and actual host support.
+`catalog-manifest` writes a compact public catalog descriptor to
+`<output.dir>/.well-known/agentsurface.json`, preserving human-owned files. The optional
+`agentsurface-mcp` stdio server exposes only the read-only `search_catalog` and
+`get_catalog_item` tools over inspected public catalogs. Configure a public OpenAPI GET
+contract or explicitly opt into a static JSON-LD index, then run `agentsurface inspect`
+before publishing the manifest or starting the MCP server. Search returns the real
+first-party item route; opening that route remains the agent host's responsibility.
+The optional MCP adapter uses the official TypeScript SDK v2 and needs Node.js 20+ and
+TypeScript 6+ to build; the core provider interfaces do not depend on MCP.
+
+The dynamic OpenAPI adapter currently supports documented filter fields and bounded
+search/detail calls; it reports dynamic sorting as unsupported until the source declares
+an unambiguous sort mapping. Neither JSON-LD nor a model record proves live inventory.
 
 ## Status
 

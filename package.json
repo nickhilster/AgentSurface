@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "agentsurface": "./dist/cli/index.js"
+    "agentsurface": "./dist/cli/index.js",
+    "agentsurface-mcp": "./dist/mcp/index.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -16,13 +17,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0"
+    "@modelcontextprotocol/server": "2.3.1",
+    "js-yaml": "^4.1.0",
+    "zod": "4.2.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.3.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
+    "typescript": "6.0.3",
     "vitest": "^2.1.8"
   }
 }

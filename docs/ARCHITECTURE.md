@@ -71,6 +71,8 @@ Generators project the model into:
 - bounded read-only query/detail descriptors where verified;
 - canonical item destinations for host handoff.
 
+The public catalog manifest is written at `<output.dir>/.well-known/agentsurface.json` with normal ownership protection. An optional MCP server exposes only read-only search and item-detail tools over verified public catalog providers; the canonical model and provider contract do not depend on MCP.
+
 The generated selection layer stays small and focused. It helps the agent find the likely item without duplicating the complete interactive website.
 
 ## Layer 4 — Validate

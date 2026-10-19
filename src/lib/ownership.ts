@@ -1,6 +1,6 @@
 /**
  * The single ownership-checked write path for artifacts generated into the target
- * repo's own tree (e.g. public/llms.txt, page alternates). Per OPERATE.md: "Human-owned
+ * repo's own tree (e.g. public/llms.txt, page alternates, JSON manifests). Per OPERATE.md: "Human-owned
  * files must not be overwritten without explicit ownership rules." Every generator must
  * route through this rather than calling writeFileSync directly.
  *
@@ -26,9 +26,16 @@ export interface OwnedWriteResult {
 export function checkOwned(path: string, overwriteHumanOwned: boolean): OwnedWriteResult {
   if (existsSync(path) && !overwriteHumanOwned) {
     const existing = readFileSync(path, "utf-8");
-    if (!existing.startsWith(OWNERSHIP_HEADER_PREFIX)) return { written: false, conflict: true };
+    if (!existing.startsWith(OWNERSHIP_HEADER_PREFIX) && !hasJsonOwnershipMarker(existing)) return { written: false, conflict: true };
   }
   return { written: false, conflict: false };
+}
+
+function hasJsonOwnershipMarker(content: string): boolean {
+  try {
+    const value = JSON.parse(content) as { _agentSurface?: { generatedBy?: unknown } };
+    return value._agentSurface?.generatedBy === "AgentSurface";
+  } catch { return false; }
 }
 
 export function writeOwned(path: string, content: string, overwriteHumanOwned: boolean): OwnedWriteResult {

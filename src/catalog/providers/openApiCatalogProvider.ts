@@ -135,7 +135,9 @@ function normalizeSourceItem(value: unknown, declaration: CatalogConfig, fields:
   }
   return {
     id, label, canonicalPageUrl, fields: projected, provenance,
-    freshness: declaration.freshness,
+    freshness: declaration.freshness.class === "live" || declaration.freshness.class === "periodic"
+      ? { ...declaration.freshness, observedAt: new Date().toISOString() }
+      : declaration.freshness,
     ...(typeof value.description === "string" ? { description: value.description } : {}),
   };
 }
@@ -166,9 +168,10 @@ function inspectOpenApiCatalog(repoRoot: string, declaration: CatalogConfig): Ca
   verifyReadOperation(search, document);
   verifyReadOperation(detail, document);
   if (!search || !detail) throw new Error("declared search/detail operation was not found.");
-  if (!pathParameters(detail.path).every((parameter) => hasParameter(detail.operation, document, parameter, "path"))) {
+  if (pathParameters(detail.path).length !== 1 || !pathParameters(detail.path).every((parameter) => hasParameter(detail.operation, document, parameter, "path"))) {
     throw new Error(`detail operation ${declaration.detailOperation} has an unresolved path parameter.`);
   }
+  if ([...declaration.canonicalRoute.matchAll(/\{([^{}]+)\}/g)].length !== 1) throw new Error("canonicalRoute must contain exactly one item ID placeholder for this adapter.");
   const searchProperties = responseProperties(document, search, true);
   const detailProperties = responseProperties(document, detail, false);
   if (!hasStringProperty(document, searchProperties, ["id", "sku"]) || !hasStringProperty(document, detailProperties, ["id", "sku"]) ||
@@ -214,11 +217,15 @@ function inspectOpenApiCatalog(repoRoot: string, declaration: CatalogConfig): Ca
     method: "openapi-contract",
     confidence: 1,
   }];
+  if (declaration.freshness.class !== "unknown") provenance.push({
+    subject: `catalog:${declaration.id}.freshness`, claim: `freshness:${declaration.freshness.class}`,
+    source: ".agentsurface/config.yaml:catalogs.freshness", method: "owner-config", confidence: 1,
+  });
   const params = new Set([...searchParams]);
   return {
     id: declaration.id, entityKind: declaration.entityKind, scope: "public", source,
     searchOperation: declaration.searchOperation!, detailOperation: declaration.detailOperation!,
-    canonicalRoute: declaration.canonicalRoute, fields,
+    canonicalRoute: declaration.canonicalRoute, ...(declaration.marketPolicy ? { marketPolicy: declaration.marketPolicy } : {}), fields,
     searchMode: "read-api", supportsQuery: ["q", "query", "search"].some((name) => params.has(name)),
     supportsSorting: false,
     supportsPagination: params.has("cursor") || params.has("page"),
@@ -236,6 +243,7 @@ function staticCatalog(declaration: CatalogConfig): CatalogRecord {
     id: declaration.id, entityKind: declaration.entityKind, scope: "public",
     source: { kind: "static-jsonld", file: "public/**/*.html" },
     searchOperation: null, detailOperation: null, canonicalRoute: declaration.canonicalRoute,
+    ...(declaration.marketPolicy ? { marketPolicy: declaration.marketPolicy } : {}),
     fields, searchMode: "static-index", supportsQuery: true,
     supportsSorting: fields.some((field) => field.sortable), supportsPagination: true,
     maxResults: declaration.maxResults, freshness: { class: "static" },

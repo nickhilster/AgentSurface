@@ -4,6 +4,7 @@ import { runInspect } from "../commands/inspect.js";
 import { runGenerate } from "../commands/generate.js";
 import { runDiff } from "../commands/diff.js";
 import { runValidate, writeValidationReport } from "../commands/validate.js";
+import { runCatalogManifest } from "../commands/catalogManifest.js";
 
 function parseArgs(argv: string[]): { command: string; flags: Record<string, string> } {
   const [command, ...rest] = argv;
@@ -116,9 +117,19 @@ async function main(): Promise<void> {
       if (result.changes.conflict.length > 0) process.exitCode = 1;
       break;
     }
+    case "catalog-manifest": {
+      const result = runCatalogManifest(repoRoot);
+      if (result.conflict) {
+        console.error(`${result.path} exists and is not AgentSurface-owned; it was left untouched.`);
+        process.exitCode = 1;
+      } else if (result.written) {
+        console.log(`Catalog manifest written to ${result.path} (${result.manifest.catalogs.length} public catalog(s)).`);
+      }
+      break;
+    }
     default: {
       console.error(`Unknown or missing command: "${command}"`);
-      console.error("Usage: agentsurface <init|inspect|generate|validate|diff> [--repo <path>] [--name <name>] [--hostnames a,b] [--server <url>] [--no-drift-check]");
+      console.error("Usage: agentsurface <init|inspect|generate|validate|diff|catalog-manifest> [--repo <path>] [--name <name>] [--hostnames a,b] [--server <url>] [--no-drift-check]");
       process.exitCode = 1;
     }
   }

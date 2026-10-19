@@ -155,6 +155,7 @@ export interface CatalogRecord {
   searchOperation: string | null;
   detailOperation: string | null;
   canonicalRoute: string;
+  marketPolicy?: { allowedMarkets: string[]; locationRequired: boolean };
   fields: CatalogField[];
   searchMode: "none" | "static-index" | "read-api";
   supportsQuery: boolean;
