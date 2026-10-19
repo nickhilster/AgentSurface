@@ -1,27 +1,40 @@
 # Architecture
 
-AgentSurface separates inspection, modeling, generation, and validation so each stage can be tested independently.
+AgentSurface separates source inspection, canonical modeling, generation, validation, and runtime integration. It adds a lightweight discovery and selection layer to the site; it does not rebuild the full website experience. After selection, the user's agent host opens the real first-party item page in a supported host surface.
+
+## End-to-end flow
+
+```text
+Website repository + authoritative public data sources
+        │
+        ▼
+ Framework and catalog inspectors
+        │
+        ▼
+ Canonical Site Model
+   ├── routes and content
+   ├── products/entities and catalogs
+   ├── capabilities and constraints
+   ├── canonical destinations
+   └── provenance and freshness
+        │
+        ├── Generate → Markdown, manifests, discovery, read-only tool contracts
+        ├── Validate → truth, drift, field/source parity, URL safety, ownership
+        └── Host adapters → request opening a selected canonical page in the
+                            user's agentic application
+```
+
+The website owns page rendering and its authoritative data. AgentSurface exposes only enough verified data to identify and assess relevant items, then provides a canonical destination. A host adapter controls where the real page opens and reports whether in-app presentation succeeded.
 
 ## Layer 1 — Inspect
 
-Framework adapters extract verifiable facts from the target repository.
+Framework adapters extract verifiable facts from route files, content collections, OpenAPI contracts, product/catalog APIs, CMS schemas, JSON-LD/Schema.org, sitemaps, robots.txt, static HTML, and repo-local agent instructions. Prefer deterministic parsing and authoritative structured data over inference.
 
-Inputs may include:
-
-- route files
-- content collections
-- OpenAPI contracts
-- JSON-LD/schema.org
-- sitemaps
-- robots.txt
-- static HTML
-- repo-local agent instructions
-
-The inspector should prefer deterministic parsing over LLM inference.
+Catalog inspection must establish the public scope, source implementation, query/detail operations, supported fields/operators, bounds, freshness semantics, and canonical route resolution. If the repository does not provide an authoritative public search source, record the gap; do not invent an endpoint or claim live inventory support.
 
 ## Layer 2 — Canonical Site Model
 
-All outputs flow from a typed canonical representation stored under `.agentsurface/`.
+All generated outputs flow from a typed canonical representation stored under `.agentsurface/`. The model includes routes, content/entities, catalogs, capabilities, constraints, handoff destinations, provenance, confidence, and freshness metadata. Exact file splits can evolve; a single coherent machine-readable source remains the architectural requirement.
 
 Suggested layout:
 
@@ -32,52 +45,62 @@ Suggested layout:
     site.json
     routes.json
     entities.json
+    catalogs.json
     capabilities.json
     constraints.json
     provenance.json
   generated/
 ```
 
-The exact file split may change during dogfooding; the architectural requirement is one canonical machine-readable model, not duplicated hand-maintained Markdown.
+### Product and catalog model
+
+Product entities use stable source IDs, typed source-backed fields, market/locale scope, price semantics, public availability, freshness, and canonical first-party destinations. Catalog records describe only verified read operations and supported query fields. Missing data is represented as unknown instead of being inferred as false.
+
+### Handoff model
+
+Handoff records map an entity to a validated canonical public route or a verified page reference. They may identify supported non-sensitive context, but never contain credentials, private user attributes, or raw conversation text. Default destinations are same-origin; external origins require explicit configuration.
 
 ## Layer 3 — Generate
 
-Generators project the canonical model into delivery surfaces:
+Generators project the model into:
 
-- repo operating contract
-- thin platform entry points
-- Markdown page mirrors
-- llms.txt
-- alternate discovery metadata
-- structured manifests
+- repo operating contract and platform entry points;
+- Markdown mirrors for useful public content;
+- `llms.txt` and other discovery metadata;
+- versioned JSON route/entity/catalog manifests;
+- bounded read-only query/detail descriptors where verified;
+- canonical item destinations for host handoff.
+
+The generated selection layer stays small and focused. It helps the agent find the likely item without duplicating the complete interactive website.
 
 ## Layer 4 — Validate
 
-Validators compare generated surfaces to the underlying repository and canonical model.
+Validators compare generated outputs and declared operations to the repository and authoritative backing sources. They answer:
 
-Validation should answer:
+- Does each declared route and item destination resolve?
+- Does each entity field match its source and have suitable provenance?
+- Are query fields, operators, result limits, and freshness contracts real?
+- Are prices, availability, units, and unknown values represented accurately?
+- Does discovery point only to existing public outputs?
+- Is a capability read-only or state-changing as implemented?
+- Does handoff resolve safely to the canonical first-party page?
+- Did generation overwrite a file it does not own?
 
-- Does this route exist?
-- Is this content current?
-- Does this discovery link point somewhere real?
-- Is this claimed capability actually backed by code/API?
-- Did generation overwrite something it did not own?
+Build-time validation proves repository-level facts. It cannot prove that a downstream agent host supports embedded browsing or that live inventory remains available later; runtime responses must report those outcomes.
 
 ## Layer 5 — Maintain
 
-AgentSurface should support CI and local diffing so drift becomes visible when the human-facing site changes.
-
-The maintenance loop is:
+CI and local diffing make model/output drift visible. The maintenance loop is:
 
 ```text
 source change → inspect → model diff → generated diff → validate
 ```
 
-## Adapter boundary
+CI reports drift and fails on configured truth/safety violations. It does not regenerate and silently commit by default.
 
-Framework adapters should be narrow. They expose facts, not project-wide policy.
+## Layer 6 — Runtime integration boundaries
 
-Conceptual interface:
+There are three independent adapter boundaries:
 
 ```ts
 interface FrameworkAdapter {
@@ -85,49 +108,61 @@ interface FrameworkAdapter {
   inspectRoutes(repo: RepoContext): Promise<RouteRecord[]>;
   inspectContent(repo: RepoContext): Promise<ContentRecord[]>;
   inspectCapabilities?(repo: RepoContext): Promise<CapabilityRecord[]>;
-  discoveryInjectionPoints?(repo: RepoContext): Promise<InjectionPoint[]>;
+}
+
+interface CatalogAdapter {
+  inspect(repo: RepoContext): Promise<CatalogRecord[]>;
+  // Any runtime binding must map only to a source-verified read contract.
+}
+
+interface HostAdapter {
+  openExperience(request: ExperienceHandoffRequest): Promise<ExperienceHandoffResult>;
 }
 ```
 
+The interfaces are conceptual until implemented. Framework adapters establish repo facts. Catalog adapters bind verified site read sources. Host adapters receive a validated destination and ask the user's agentic application to present it. Website-side metadata cannot guarantee or command the host presentation.
+
+The handoff request includes a canonical URL or verified page reference and a preferred presentation of the current agent surface. The host result reports the actual outcome, such as current app, companion app, external browser, unsupported, denied, or error. The host may fall back to an external browser but must not claim in-app success unless it occurred.
+
+Host integration is model-provider-neutral. MCP may carry search/detail tools or handoff requests in an implementation, but it is not the canonical model and not the only possible protocol.
+
+## Readable, read-only-operable, and transactional
+
+```text
+Agent-readable
+  reads content, routes, product/entity records
+
+Read-only-operable
+  searches a verified public catalog or retrieves an item
+
+Transactional
+  submits data, changes state, contacts a seller, reserves, or pays
+```
+
+Readable and read-only-operable surfaces support product discovery. Transactional capabilities require a separate safety design and are not exposed by the discovery workflow. Inference alone never elevates a capability to operable status.
+
 ## Provenance model
 
-Any non-trivial generated fact should be traceable to evidence.
-
-Conceptual provenance record:
+Every non-trivial claim maps to evidence. For catalog facts, provenance should identify the API/schema/content source and field mapping; dynamic fields should include their observation/freshness semantics. Heuristic inference lowers confidence and cannot establish availability, permission, or a callable capability.
 
 ```json
 {
-  "subject": "route:/values",
-  "claim": "public-static",
-  "source": "blog/src/pages/values.astro",
-  "method": "framework-route-parser",
+  "subject": "entity:inventory-123.price",
+  "claim": "advertised-price",
+  "source": "src/inventory/adapter.ts:price",
+  "method": "typed-api-schema",
+  "observedAt": "2026-10-19T12:00:00Z",
   "confidence": 1.0
 }
 ```
 
-Heuristic inference should carry lower confidence and should never elevate a site to agent-operable status on its own.
-
-## Readable vs operable
-
-A critical architectural boundary:
-
-```text
-Agent-readable
-  understands content/routes/entities
-
-Agent-operable
-  invokes verified actions with side effects
-```
-
-The first can be generated broadly. The second requires explicit backing contracts, authorization, constraints, and side-effect semantics.
-
 ## Ownership model
 
-Every generated artifact needs an owner state:
+Every generated artifact has an owner state:
 
-- generated-and-owned
-- human-owned
-- merged/managed
-- conflict
+- generated-and-owned;
+- human-owned;
+- merged/managed;
+- conflict.
 
-Generation should default to preserving unknown files and reporting conflicts rather than overwriting them.
+Generation defaults to preserving unknown files and reporting conflicts.

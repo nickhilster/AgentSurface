@@ -79,6 +79,18 @@ Make at least one meaningful content/route change and confirm AgentSurface repor
 
 Failures are product input. Document them rather than patching around them silently.
 
+### Foundation exit checks
+
+For a foundation release that adds structured validation and `diff`, also:
+
+- run `agentsurface diff` before generation and confirm it leaves target files unchanged;
+- compare the post-generation diff with the actual generated files;
+- run `validate --format json` both with a preview URL and with `--no-drift-check`;
+- confirm Tier 1 marks live checks unchecked and Tier 2 reports route/content results;
+- parse the GitHub Actions workflow and exercise its no-preview, preview, and strict-drift
+  failure policies with report fixtures;
+- record whether a real GitHub Actions run occurred separately from local workflow checks.
+
 ## Dogfood report template
 
 For each run capture:
@@ -119,3 +131,61 @@ Do not call the first milestone complete until:
 - generated outputs can be regenerated without clobbering human files,
 - a source change causes a useful drift signal,
 - unresolved unknowns are reported rather than fabricated.
+
+## Product discovery and experience handoff extension
+
+When dogfooding reaches the catalog and host-integration phases, use a public catalogue with enough products and dynamic fields to make page-by-page browsing costly. Keep the original v0.1 checks; this section adds an end-to-end evaluation of find-then-open.
+
+### Discovery baseline
+
+Record a representative set of user needs and the exact site-supported filters they map to. For each query, measure:
+
+- number of pages or records read;
+- number of tool/API calls and response bytes;
+- time to return a useful shortlist;
+- whether returned candidates satisfy the explicit criteria;
+- whether match explanations point to source-backed fields;
+- whether unsupported criteria, missing data, and partial matches are called out;
+- whether price, availability, location scope, and freshness are represented correctly.
+
+Compare the results with a baseline where an agent traverses the site's normal pages. The goal is a smaller amount of browsing and context for comparable or better candidate coverage, not a universal ranking score.
+
+### Handoff baseline
+
+For selected candidates, verify:
+
+- the result resolves to the exact canonical first-party item page;
+- host presentation occurs inside the current agentic application when supported;
+- the opened page is the real site experience, not only generated markdown or a copied card;
+- the host reports the actual surface used;
+- unsupported in-app presentation falls back to a validated canonical link;
+- context passed to the destination contains no credentials, sensitive attributes, or raw conversation text;
+- authentication, browser security, and site permission flows remain under user control.
+
+Run each case on supported desktop and mobile hosts where available. Record unsupported hosts as unsupported; do not generalize a successful integration to hosts that were not tested.
+
+### Product dogfood report additions
+
+For each product-catalog run capture:
+
+```markdown
+## Catalog source and freshness
+
+## Search cases and supported filter mapping
+
+## Discovery baseline and page-by-page comparison
+
+## Result match fidelity and unsupported criteria
+
+## Price, availability, locale, and provenance issues
+
+## Canonical item route resolution
+
+## Host/device handoff outcomes
+
+## Privacy, authentication, and fallback behavior
+
+## Remaining product or adapter gaps
+```
+
+Do not claim the product-discovery milestone complete until bounded search returns source-backed candidates, canonical routes resolve, and the handoff reports an honest in-app or fallback outcome. Product search remains read-only; seller contact, quote submission, booking, and purchase actions are not part of this dogfood flow.
