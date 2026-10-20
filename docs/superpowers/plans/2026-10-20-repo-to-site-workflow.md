@@ -43,9 +43,9 @@
 - The guide directs the agent to use existing repository data and routes, use `agentsurface inspect`/`validate` where available, make reviewable changes, and report exact item-link evidence and unknowns.
 - The guide must not require a public API contract, MCP server, or host adapter when repository data access and ordinary web links suffice.
 
-- [ ] Review the current CLI commands and target workflow described in the spec; write the guide with the exact current commands and honest implementation status.
-- [ ] Update README and roadmap to make repo-to-site transformation the first product milestone and mark provider/MCP/host integrations optional.
-- [ ] Check every guide command and linked file against the repository; run `git diff --check`.
+- [x] Review the current CLI commands and target workflow described in the spec; write the guide with the exact current commands and honest implementation status.
+- [x] Update README and roadmap to make repo-to-site transformation the first product milestone and mark provider/MCP/host integrations optional.
+- [x] Check every guide command and linked file against the repository; run `git diff --check`.
 - [ ] Commit as `docs: add repo-to-site agent workflow`.
 
 ### Task 2: Build a small static catalogue reference site

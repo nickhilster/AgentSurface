@@ -1,95 +1,54 @@
 # Roadmap
 
-This roadmap sequences the product defined in [`docs/SPEC.md`](docs/SPEC.md). AgentSurface is intended to help an agent find a user's relevant item quickly and then hand the exact first-party page to the user's agentic application. The generated selection layer supports that task; the website remains the item experience.
+AgentSurface's primary milestone is transforming a website repository into a site-native discovery experience that ordinary web-capable agents can use. Earlier catalog-provider and host-handoff work remains useful optional infrastructure; it does not define or block the core repo-to-site outcome.
 
-## v0.1 — Prove the pattern
+## Next — Repo-to-site transformation
 
-- [x] Select first non-agentified website repo (teambotics-website main site)
-- [x] Define minimal `.agentsurface/config.yaml`
-- [x] Define Canonical Site Model schema
-- [x] Implement framework detection (Next.js App Router, confidence-scored)
-- [x] Implement one real framework adapter (Next.js App Router)
-- [x] Inspect routes and public content (41 routes, 25 API capabilities)
-- [x] Preserve provenance
-- [x] Generate selected Markdown alternates
-- [x] Generate `llms.txt`
-- [x] Validate route parity and content fidelity
-- [x] Detect stale generated output
-- [x] Protect human-owned files
-- [x] Publish first dogfood report
+Goal: a coding agent can use AgentSurface in a website repository to identify its existing source, implement a bounded discovery page, and verify links to exact first-party item pages.
 
-## v0.2 — Make it repeatable
+- [x] Confirm the repo-to-site product direction and detailed acceptance criteria
+- [x] Add a portable, agent-neutral coding workflow
+- [ ] Build a small static catalogue reference site backed by its own source data
+- [ ] Dogfood the workflow and verify exact item links on the static reference site
+- [ ] Prove the workflow on a dynamic catalogue using its existing server-side data path
+- [ ] Add reusable automation only where static and dynamic dogfood show the same need
+- [ ] Measure discovery calls/pages, response size, exact-link accuracy, and result fidelity against page-by-page browsing
 
-- [x] Add `init`, `inspect`, `generate`, and `validate` CLI commands
-- [x] Make generation idempotent
-- [x] Add generated-file ownership metadata
-- [x] Add validated route classification and content-boundary overrides with owner provenance (catalog source mappings remain in v0.4)
-- [x] Add structured validation reports (human-readable and JSON)
-- [x] Add second framework adapter
-- [x] Dogfood on a second structurally different site
+## Existing foundations
 
-## v0.3 — CI and trustworthy ecosystem surfaces
+The following completed work is supporting infrastructure for the repo-to-site milestone:
 
-- [x] Implement `agentsurface diff` for model/output preview before mutation
-- [x] Add GitHub Actions validation workflow and PR drift checks
-- [x] Define and document framework, catalog, output, and host adapter contracts
-- [ ] Add versioned JSON manifest output for routes, entities, capabilities, and constraints
-- [x] Reuse authoritative Schema.org / JSON-LD and OpenAPI data where appropriate
-- [ ] Improve content/entity extraction while retaining field-level provenance
-- [ ] Test ownership, privacy, route parity, and stale-output checks in CI
-- [ ] Dogfood on structurally different content sites and record adapter gaps
+- [x] Inspect Next.js App Router and Vite/static repositories
+- [x] Build a provenance-backed Canonical Site Model
+- [x] Generate Markdown, `llms.txt`, manifests, and safe owned outputs
+- [x] Validate route parity, ownership, and generated-output drift
+- [x] Model product entities, freshness, and canonical item destinations
+- [x] Add optional static JSON-LD and configured OpenAPI catalog providers
+- [x] Add optional MCP catalog tools
+- [x] Define and test the host-neutral pending handoff contract
 
-## v0.4 — Product discovery
+## Optional extension — Runtime catalog interfaces
 
-Goal: let an agent search a large site catalogue for the user's stated need without window-shopping through product pages.
+The runtime catalog provider path remains available for sites or agent hosts that want it. It is not required when the website repository contains a usable source and the site can render a normal discovery page.
 
-- [x] Extend the Canonical Site Model with product entities, catalogs, typed fields, price semantics, availability, market/location scope, and freshness
-- [x] Define a bounded, typed, read-only catalog search/detail contract
-- [x] Bind catalogs only to verified authoritative read APIs or explicitly scoped static indexes
-- [ ] Support declared query text, filters, operators, sorting, pagination, and result limits
-- [x] Generate a lightweight selection manifest with canonical item-page destinations
-- [ ] Include data provenance, freshness, unknowns, and price/availability conditions in results
-- [x] Enforce public-field allowlists and optional/location-minimizing search policy
-- [ ] Validate field contracts, query bounds, result shape, freshness metadata, and entity-to-route parity
-- [x] Provide an optional MCP projection without making one protocol canonical
-- [ ] Dogfood on a real product catalogue with dynamic inventory and compare bounded search with page-by-page browsing
+- [ ] Improve provenance/freshness checks for optional catalog providers
+- [ ] Dogfood a real dynamic catalog when an owner-authorized repository/source is available
+- [ ] Expand OpenAPI, JSON-LD, or MCP support only when dogfood evidence justifies it
 
-## v0.5 — Agentic experience handoff
+## Optional extension — Host-specific presentation
 
-Goal: after finding an item, let the user inspect the real first-party page from the agentic application they already use.
+The website supplies exact canonical item URLs. The user's agentic application controls whether those links open embedded, in a companion surface, or externally.
 
-- [x] Specify a host-neutral experience handoff contract for a canonical destination or verified page reference
-- [ ] Implement host adapters separately from website/framework adapters
-- [ ] Open the real first-party page in the current agentic application's embedded or in-app browser when supported
-- [ ] Report the actual presentation outcome; do not claim embedded support from website metadata alone
-- [x] Provide a validated external-browser fallback when the host cannot present the page in-app
-- [x] Preserve item identity and only supported, non-sensitive context through the handoff
-- [x] Validate canonical origin, public-route status, route resolution, and safe URL construction
-- [ ] Demonstrate working flows on supported desktop and mobile agentic environments
-- [ ] Dogfood handoff from natural-language request through search, shortlist, selection, and in-agent page viewing
+- [ ] Implement host adapters only for named apps with documented supported extension points
+- [ ] Report actual presentation outcomes and fallback behavior
+- [ ] Demonstrate supported desktop/mobile hosts before making platform claims
 
-## v0.6 — Optional verified operability
-
-- [ ] Model authenticated actions and constraints separately from public read-only discovery
-- [ ] Define action-level authorization, confirmation, transmitted-data, side-effect, error, and recovery semantics
-- [ ] Generate operable tools only from verified backing implementations and explicit owner policy
-- [ ] Explore MCP generation for verified capabilities
-- [ ] Keep checkout, lead capture, quote requests, booking, and purchases outside the catalog-search workflow
-- [ ] Add safety validation and explicit tests for any state-changing capability before release
-
-## Later — Evidence-based measurement and ecosystem
-
-- [ ] Add richer entity relationships and supported comparison
-- [ ] Expand framework/catalog/host adapters based on dogfooding evidence
-- [ ] Benchmark discovery time, query count, result size, match fidelity, freshness, and handoff success against page-by-page browsing
-- [ ] Consider capability reporting only after empirical benchmarks exist; report readability, discovery, search reliability, and handoff separately
-
-## Explicitly deferred
+## Explicitly out of scope
 
 - Broad framework support before adapters are reliable
-- Autonomous deployment
+- Autonomous production deployment
 - Automatic exposure of authenticated/private routes
-- Vendor-specific core dependencies
-- Automatic invention of catalog endpoints, ranking logic, or transaction capabilities
-- A full agent-facing replacement UI for the site's product experience
-- A single agentification score before repeatable benchmarks
+- Vendor-specific dependencies in the core
+- Inventing catalog data sources, endpoints, ranking logic, or transaction capabilities
+- Replacing the website's real item pages with an agent-only storefront
+- A single agentification score before repeatable empirical benchmarks

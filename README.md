@@ -64,6 +64,7 @@ Early OSS design and dogfooding stage. Current code is a foundation, not the com
 
 See:
 
+- [Portable coding-agent workflow](AGENT_SURFACE.md)
 - [Product specification](docs/SPEC.md)
 - [Detailed repo-to-site product design](docs/superpowers/specs/2026-10-19-repo-to-agent-surface-design.md)
 - [Architecture](docs/ARCHITECTURE.md)
