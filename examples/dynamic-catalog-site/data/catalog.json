@@ -1,0 +1,22 @@
+{
+  "metadata": {
+    "dataKind": "fictional demo snapshot",
+    "asOf": "2026-10-20T12:00:00.000Z",
+    "currency": "CAD"
+  },
+  "vehicles": [
+    { "id": "stock-104", "slug": "stock-104-rav4-xle", "year": 2023, "make": "Toyota", "model": "RAV4", "trim": "XLE AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 38995, "priceKind": "advertised price", "availability": "available", "kilometres": 20400, "updatedAt": "2026-10-20T11:55:00.000Z", "dealerInternalMemo": "Demo only: internal cost and negotiation notes are not public." },
+    { "id": "stock-205", "slug": "stock-205-crv-exl", "year": 2022, "make": "Honda", "model": "CR-V", "trim": "EX-L AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 36500, "priceKind": "advertised price", "availability": "available", "kilometres": 31800, "updatedAt": "2026-10-20T11:52:00.000Z" },
+    { "id": "stock-308", "slug": "stock-308-cx5-gs", "year": 2022, "make": "Mazda", "model": "CX-5", "trim": "GS AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 32900, "priceKind": "advertised price", "availability": "available", "kilometres": 35200, "updatedAt": "2026-10-20T11:48:00.000Z" },
+    { "id": "stock-412", "slug": "stock-412-corolla-se", "year": 2022, "make": "Toyota", "model": "Corolla", "trim": "SE FWD", "bodyType": "Sedan", "drivetrain": "FWD", "priceCad": 24995, "priceKind": "advertised price", "availability": "available", "kilometres": 27600, "updatedAt": "2026-10-20T11:40:00.000Z" },
+    { "id": "stock-517", "slug": "stock-517-escape-sel", "year": 2021, "make": "Ford", "model": "Escape", "trim": "SEL AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 24750, "priceKind": "advertised price", "availability": "available", "kilometres": 46800, "updatedAt": "2026-10-20T11:35:00.000Z" },
+    { "id": "stock-623", "slug": "stock-623-civic-sport", "year": 2023, "make": "Honda", "model": "Civic", "trim": "Sport FWD", "bodyType": "Sedan", "drivetrain": "FWD", "priceCad": 27950, "priceKind": "advertised price", "availability": "available", "kilometres": 17200, "updatedAt": "2026-10-20T11:31:00.000Z" },
+    { "id": "stock-731", "slug": "stock-731-forester-touring", "year": 2024, "make": "Subaru", "model": "Forester", "trim": "Touring AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 41450, "priceKind": "advertised price", "availability": "available", "kilometres": 11200, "updatedAt": "2026-10-20T11:28:00.000Z" },
+    { "id": "stock-842", "slug": "stock-842-sportage-ex", "year": 2023, "make": "Kia", "model": "Sportage", "trim": "EX AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 37490, "priceKind": "advertised price", "availability": "available", "kilometres": 22100, "updatedAt": "2026-10-20T11:22:00.000Z" },
+    { "id": "stock-956", "slug": "stock-956-tucson-preferred", "year": 2022, "make": "Hyundai", "model": "Tucson", "trim": "Preferred AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 31995, "priceKind": "advertised price", "availability": "available", "kilometres": 38400, "updatedAt": "2026-10-20T11:18:00.000Z" },
+    { "id": "stock-106", "slug": "stock-106-rogue-sv", "year": 2021, "make": "Nissan", "model": "Rogue", "trim": "SV AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 28900, "priceKind": "advertised price", "availability": "available", "kilometres": 50200, "updatedAt": "2026-10-20T11:13:00.000Z" },
+    { "id": "stock-117", "slug": "stock-117-cx30-gt", "year": 2024, "make": "Mazda", "model": "CX-30", "trim": "GT AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 34800, "priceKind": "advertised price", "availability": "available", "kilometres": 8900, "updatedAt": "2026-10-20T11:09:00.000Z" },
+    { "id": "stock-128", "slug": "stock-128-tiguan-comfortline", "year": 2022, "make": "Volkswagen", "model": "Tiguan", "trim": "Comfortline AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 35400, "priceKind": "advertised price", "availability": "available", "kilometres": 29400, "updatedAt": "2026-10-20T11:02:00.000Z" },
+    { "id": "stock-139", "slug": "stock-139-cx5-signature", "year": 2024, "make": "Mazda", "model": "CX-5", "trim": "Signature AWD", "bodyType": "SUV", "drivetrain": "AWD", "priceCad": 42950, "priceKind": "advertised price", "availability": "available", "kilometres": 7600, "updatedAt": "2026-10-20T10:55:00.000Z" }
+  ]
+}

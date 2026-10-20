@@ -10,6 +10,7 @@ Goal: a coding agent can use AgentSurface in a website repository to identify it
 - [x] Add a portable, agent-neutral coding workflow
 - [x] Build a small static catalogue reference site backed by its own source data
 - [x] Dogfood the workflow and verify exact item links on the static reference site
+- [x] Add a local dynamic-catalogue demonstration fixture (interaction-shape validation only)
 - [ ] Prove the workflow on a dynamic catalogue using its existing server-side data path
 - [ ] Add reusable automation only where static and dynamic dogfood show the same need
 - [ ] Measure discovery calls/pages, response size, exact-link accuracy, and result fidelity against page-by-page browsing
