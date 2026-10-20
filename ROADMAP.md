@@ -4,12 +4,12 @@ AgentSurface's primary milestone is transforming a website repository into a sit
 
 ## Next — Repo-to-site transformation
 
-Goal: a coding agent can use AgentSurface in a website repository to identify its existing source, implement a bounded discovery page, and verify links to exact first-party item pages.
+Goal: a coding agent can use AgentSurface in a website repository to identify its existing source, implement a bounded discovery page, and verify links to exact first-party item pages. The static fixture now demonstrates that workflow; a dynamic catalogue remains unproven.
 
 - [x] Confirm the repo-to-site product direction and detailed acceptance criteria
 - [x] Add a portable, agent-neutral coding workflow
-- [ ] Build a small static catalogue reference site backed by its own source data
-- [ ] Dogfood the workflow and verify exact item links on the static reference site
+- [x] Build a small static catalogue reference site backed by its own source data
+- [x] Dogfood the workflow and verify exact item links on the static reference site
 - [ ] Prove the workflow on a dynamic catalogue using its existing server-side data path
 - [ ] Add reusable automation only where static and dynamic dogfood show the same need
 - [ ] Measure discovery calls/pages, response size, exact-link accuracy, and result fidelity against page-by-page browsing

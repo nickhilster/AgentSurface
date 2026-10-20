@@ -46,7 +46,7 @@
 - [x] Review the current CLI commands and target workflow described in the spec; write the guide with the exact current commands and honest implementation status.
 - [x] Update README and roadmap to make repo-to-site transformation the first product milestone and mark provider/MCP/host integrations optional.
 - [x] Check every guide command and linked file against the repository; run `git diff --check`.
-- [ ] Commit as `docs: add repo-to-site agent workflow`.
+- [x] Commit as `docs: add repo-to-site agent workflow`.
 
 ### Task 2: Build a small static catalogue reference site
 
@@ -65,11 +65,11 @@
 - Each catalogue entry has stable `id`, `name`, public searchable attributes, `public` status, and `canonicalPath`; item detail pages expose matching identity and canonical metadata.
 - `discovery.js` exports pure helpers for filtering, limiting, canonical-link selection, and safe text rendering so they can be tested without a browser.
 
-- [ ] Add failing tests for `filtersBySupportedQueryAndFields`, `excludesNonPublicItems`, `capsUnfilteredResults`, `usesExactCanonicalItemLinks`, and `escapesQueryText`.
-- [ ] Run the focused fixture tests and confirm each fails for the intended missing behavior.
-- [ ] Implement the smallest accessible HTML/JS/CSS static site using the source catalogue; use ordinary URLs and exact item routes, with no new runtime dependency.
-- [ ] Run the focused tests and `npm test`; expected: all pass and links match fixture records.
-- [ ] Commit as `feat: add static catalog discovery example`.
+- [x] Add failing tests for `filtersBySupportedQueryAndFields`, `excludesNonPublicItems`, `capsUnfilteredResults`, `usesExactCanonicalItemLinks`, `rejectsMalformedCanonicalPath`, `reportsUnsupportedFilters`, and `escapesQueryText`.
+- [x] Run the focused fixture tests and confirm each fails for the intended missing behavior.
+- [x] Implement the smallest accessible HTML/JS/CSS static site using the source catalogue; use ordinary URLs and exact item routes, with no new runtime dependency.
+- [x] Run the focused tests and `npm test`; expected: all pass and links match fixture records.
+- [x] Commit as `feat: add static catalog discovery example`.
 
 ### Task 3: Dogfood the portable workflow on the example site
 
@@ -82,11 +82,11 @@
 - Produces: an evidence-based report documenting repository inspection, source identification, implementation choices, ordinary browser flow, exact item route checks, privacy/freshness claims, verification, and remaining gaps.
 - The report must distinguish this static fixture from real dynamic inventory and real-host support.
 
-- [ ] Follow `AGENT_SURFACE.md` step by step against the example repository and record any instructions that cannot be followed as written.
-- [ ] Verify the example can be served as static files and that each result link resolves to the intended product page.
-- [ ] Record tests/build/route checks and the limits of the static catalogue.
-- [ ] Run `git diff --check` and review the report against actual evidence.
-- [ ] Commit as `docs: record static repo-to-site dogfood`.
+- [x] Follow `AGENT_SURFACE.md` step by step against the example repository and record any instructions that cannot be followed as written.
+- [x] Verify the example can be served as static files and that each result link resolves to the intended product page.
+- [x] Record tests/build/route checks and the limits of the static catalogue.
+- [x] Run `git diff --check` and review the report against actual evidence.
+- [x] Commit as `docs: record static repo-to-site dogfood`.
 
 ### Task 4: Verify the complete first vertical slice
 
@@ -98,10 +98,10 @@
 - Consumes: the portable workflow, example site, and dogfood report.
 - Produces: a truthful roadmap status and a clean, verified branch; no claim of dynamic catalogue or real agent-host support.
 
-- [ ] Run `npm test`, `npm run build`, and `npm run typecheck`; expected: pass.
-- [ ] Run `git diff --check`; expected: pass.
-- [ ] Review the working tree and final report; mark only fixture-proven milestones complete.
-- [ ] Commit any final roadmap/spec correction as `docs: align roadmap with static dogfood evidence`.
+- [x] Run `npm test`, `npm run build`, and `npm run typecheck`; expected: pass.
+- [x] Run `git diff --check`; expected: pass.
+- [x] Review the working tree and final report; mark only fixture-proven milestones complete.
+- [x] Commit any final roadmap/spec correction as `docs: align roadmap with static dogfood evidence`.
 
 ## Execution Notes
 
