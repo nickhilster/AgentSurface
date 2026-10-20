@@ -79,18 +79,6 @@ Make at least one meaningful content/route change and confirm AgentSurface repor
 
 Failures are product input. Document them rather than patching around them silently.
 
-### Foundation exit checks
-
-For a foundation release that adds structured validation and `diff`, also:
-
-- run `agentsurface diff` before generation and confirm it leaves target files unchanged;
-- compare the post-generation diff with the actual generated files;
-- run `validate --format json` both with a preview URL and with `--no-drift-check`;
-- confirm Tier 1 marks live checks unchecked and Tier 2 reports route/content results;
-- parse the GitHub Actions workflow and exercise its no-preview, preview, and strict-drift
-  failure policies with report fixtures;
-- record whether a real GitHub Actions run occurred separately from local workflow checks.
-
 ## Dogfood report template
 
 For each run capture:
@@ -138,8 +126,6 @@ When dogfooding reaches the catalog and host-integration phases, use a public ca
 
 ### Discovery baseline
 
-Before any dynamic-catalog run, confirm the owner-declared OpenAPI contract points to a public HTTPS server and that the selected search/detail operations are unauthenticated GETs with no request body. Verify each allowlisted field and filter operator against the operation parameters and response schemas. Record unsupported schema features as unknowns. Static JSON-LD may create a bounded static index only when the site owner explicitly configures it; its price and availability freshness stay static or unknown, and JSON-LD alone is not evidence of live inventory.
-
 Record a representative set of user needs and the exact site-supported filters they map to. For each query, measure:
 
 - number of pages or records read;
@@ -163,8 +149,6 @@ For selected candidates, verify:
 - unsupported in-app presentation falls back to a validated canonical link;
 - context passed to the destination contains no credentials, sensitive attributes, or raw conversation text;
 - authentication, browser security, and site permission flows remain under user control.
-
-Run the fake host-adapter conformance suite, then report its result separately from a real host test. The fake confirms only contract behavior; it does not establish that any desktop/mobile application supports embedded browsing.
 
 Run each case on supported desktop and mobile hosts where available. Record unsupported hosts as unsupported; do not generalize a successful integration to hosts that were not tested.
 
@@ -193,3 +177,9 @@ For each product-catalog run capture:
 ```
 
 Do not claim the product-discovery milestone complete until bounded search returns source-backed candidates, canonical routes resolve, and the handoff reports an honest in-app or fallback outcome. Product search remains read-only; seller contact, quote submission, booking, and purchase actions are not part of this dogfood flow.
+
+## Local dynamic demonstration (not a real-site dogfood run)
+
+`examples/dynamic-catalog-site/` is a local fixture for exercising the interaction shape while no owner-authorized dynamic catalogue repository is available. It reads its JSON fixture from disk on each request, applies bounded query-time filters, and returns exact first-party-style item routes. The records are explicitly fictional and are not connected to dealer inventory.
+
+This fixture can validate server-rendered query handling, exact item route construction, escaping, unsupported-filter disclosure, and exclusion of private fixture fields. It cannot validate integration with an existing website's server-side source, live freshness, real price/availability semantics, production scale, owner approval, or opening a page inside a user's agentic application. Keep the real dynamic-catalogue and host-handoff exit criteria open until those are exercised against an authorized real site and supported host.
