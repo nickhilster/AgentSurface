@@ -1,0 +1,10 @@
+{
+  "updatedAt": "2026-10-20",
+  "items": [
+    { "id": "stock-104", "name": "2021 Toyota RAV4 XLE", "make": "Toyota", "model": "RAV4", "trim": "XLE", "year": 2021, "priceCad": 32900, "public": true, "canonicalPath": "/products/stock-104-rav4-xle/" },
+    { "id": "stock-205", "name": "2022 Honda CR-V EX-L", "make": "Honda", "model": "CR-V", "trim": "EX-L", "year": 2022, "priceCad": 35400, "public": true, "canonicalPath": "/products/stock-205-crv-exl/" },
+    { "id": "stock-308", "name": "2020 Toyota Corolla SE", "make": "Toyota", "model": "Corolla", "trim": "SE", "year": 2020, "priceCad": 22400, "public": true, "canonicalPath": "/products/stock-308-corolla-se/" },
+    { "id": "stock-412", "name": "2023 Mazda CX-5 GS", "make": "Mazda", "model": "CX-5", "trim": "GS", "year": 2023, "priceCad": 33700, "public": true, "canonicalPath": "/products/stock-412-cx5-gs/" },
+    { "id": "stock-517", "name": "2021 Ford Escape SEL", "make": "Ford", "model": "Escape", "trim": "SEL", "year": 2021, "priceCad": 27600, "public": true, "canonicalPath": "/products/stock-517-escape-sel/" }
+  ]
+}

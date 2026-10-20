@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Find a vehicle | Northstar Motors</title>
+    <meta name="description" content="Search Northstar Motors' sample public vehicle catalogue.">
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./discovery.js"></script>
+  </head>
+  <body>
+    <header class="site-header"><a class="brand" href="./index.html">Northstar Motors</a><nav aria-label="Main navigation"><a href="./discover.html" aria-current="page">Find a vehicle</a></nav></header>
+    <main class="page-shell">
+      <p class="eyebrow">Vehicle discovery</p>
+      <h1>Search available vehicles</h1>
+      <p class="intro">Describe what you need or narrow by make and budget. Results link to the corresponding vehicle page.</p>
+      <p class="notice">Sample inventory only. Availability and prices are illustrative, not live.</p>
+      <form id="discovery-form" action="./discover.html" method="get" class="search-form">
+        <label>Keywords<input name="q" type="search" placeholder="RAV4, SUV, 2021"></label>
+        <label>Make<input name="make" type="text" placeholder="Toyota"></label>
+        <label>Maximum price (CAD)<input name="maxPrice" type="number" min="0" step="100" placeholder="35000"></label>
+        <button class="button" type="submit">Search vehicles</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite">Loading sample vehicles…</p>
+      <section id="results" class="results" aria-label="Vehicle results"></section>
+    </main>
+    <footer>Northstar Motors sample site · <a href="./index.html">Home</a></footer>
+  </body>
+</html>
