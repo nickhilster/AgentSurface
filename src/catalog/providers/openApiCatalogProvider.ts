@@ -84,7 +84,7 @@ export async function bindOpenApiCatalogProvider(repoRoot: string, config: Agent
     },
     async getById(id: string) {
       const parameterNames = pathParameters(detail.path);
-      if (parameterNames.length !== 1 || !/^[A-Za-z0-9._~-]{1,128}$/.test(id)) return null;
+      if (parameterNames.length !== 1 || !/^[A-Za-z0-9._~-]{1,128}$/.test(id) || id === "." || id === "..") return null;
       const path = detail.path.replace(`{${parameterNames[0]}}`, encodeURIComponent(id));
       const data = await getJson(operationUrl(server, path));
       return normalizeSourceItem(data, declaration, declaration.fieldAllowlist, id);
@@ -116,9 +116,12 @@ async function getJson(url: URL): Promise<unknown> {
 function normalizeSourceItem(value: unknown, declaration: CatalogConfig, fields: CatalogFieldConfig[], idOverride?: string): CatalogItemDetail | null {
   if (!isRecord(value)) return null;
   const idField = typeof value.id === "string" ? "id" : typeof value.sku === "string" ? "sku" : null;
-  const id = idOverride ?? (idField ? String(value[idField]) : "");
+  if (!idField) return null;
+  const sourceId = String(value[idField]);
+  if (idOverride !== undefined && sourceId !== idOverride) return null;
+  const id = idOverride ?? sourceId;
   const label = [value.name, value.title, value.label].find((candidate) => typeof candidate === "string");
-  const safeRouteId = /^[A-Za-z0-9._~-]{1,128}$/.test(id) ? id : null;
+  const safeRouteId = /^[A-Za-z0-9._~-]{1,128}$/.test(id) && id !== "." && id !== ".." ? id : null;
   const placeholders = [...declaration.canonicalRoute.matchAll(/\{([^{}]+)\}/g)];
   if (!id || typeof label !== "string" || !safeRouteId || placeholders.length !== 1) return null;
   const canonicalPageUrl = declaration.canonicalRoute.replace(`{${placeholders[0][1]}}`, safeRouteId);

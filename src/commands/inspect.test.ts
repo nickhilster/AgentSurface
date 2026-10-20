@@ -37,7 +37,7 @@ describe("inspect owner route overrides", () => {
     repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-catalog-empty-"));
     writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
     writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
-    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["example.test"] } });
 
     const model = await runInspect({ repoRoot });
 
@@ -62,7 +62,7 @@ describe("inspect owner route overrides", () => {
       brand: { "@type": "Brand", name: "Example" },
       offers: { "@type": "Offer", price: "49.99", priceCurrency: "CAD", availability: "https://schema.org/InStock" },
     })}</script><main>Widget</main>`);
-    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["example.test"] } });
 
     const model = await runInspect({ repoRoot });
     const product = model.entities.find((entity) => entity.kind === "product");
@@ -83,6 +83,39 @@ describe("inspect owner route overrides", () => {
     }));
   });
 
+  it("uses each product's own inspected URL on a category page and leaves unresolved products without a destination", async () => {
+    repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-jsonld-category-"));
+    writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
+    writeFileSync(join(repoRoot, "package.json"), JSON.stringify({ devDependencies: { vite: "^6.0.0" } }));
+    mkdirSync(join(repoRoot, "public", "category"), { recursive: true });
+    mkdirSync(join(repoRoot, "public", "products", "one"), { recursive: true });
+    mkdirSync(join(repoRoot, "public", "products", "two"), { recursive: true });
+    const product = (sku: string, name: string, url?: string) => ({
+      "@context": "https://schema.org", "@type": "Product", sku, name, ...(url ? { url } : {}),
+    });
+    writeFileSync(join(repoRoot, "public", "category", "index.html"), `<script type="application/ld+json">${JSON.stringify({
+      "@context": "https://schema.org", "@graph": [
+        product("SKU-ONE", "One", "/products/one/"),
+        product("SKU-TWO", "Two"),
+        product("SKU-CATEGORY", "Category route", "/category/"),
+        product("SKU-EXTERNAL", "External route", "https://outside.test/products/one/"),
+      ],
+    })}</script>`);
+    writeFileSync(join(repoRoot, "public", "products", "one", "index.html"), "<h1>One</h1>");
+    writeFileSync(join(repoRoot, "public", "products", "two", "index.html"), "<h1>Two</h1>");
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["example.test"] } });
+
+    const model = await runInspect({ repoRoot });
+    const one = model.entities.find((entity) => entity.kind === "product" && entity.id === "sku:SKU-ONE");
+    const two = model.entities.find((entity) => entity.kind === "product" && entity.id === "sku:SKU-TWO");
+    const category = model.entities.find((entity) => entity.kind === "product" && entity.id === "sku:SKU-CATEGORY");
+    const external = model.entities.find((entity) => entity.kind === "product" && entity.id === "sku:SKU-EXTERNAL");
+    expect(one && "canonicalPageUrl" in one ? one.canonicalPageUrl : undefined).toBe("/products/one/");
+    expect(two && "canonicalPageUrl" in two ? two.canonicalPageUrl : undefined).toBeNull();
+    expect(category && "canonicalPageUrl" in category ? category.canonicalPageUrl : undefined).toBeNull();
+    expect(external && "canonicalPageUrl" in external ? external.canonicalPageUrl : undefined).toBeNull();
+  });
+
   it("doesNotTreatJsonLdOfferAsLiveAvailability", async () => {
     repoRoot = mkdtempSync(join(tmpdir(), "agentsurface-inspect-jsonld-freshness-"));
     writeFileSync(join(repoRoot, "vite.config.ts"), "export default {};");
@@ -92,13 +125,14 @@ describe("inspect owner route overrides", () => {
       "@context": "https://schema.org", "@type": "Product", sku: "SKU-2", name: "Widget 2",
       offers: { "@type": "Offer", price: "99.99", priceCurrency: "CAD", availability: "https://schema.org/InStock" },
     })}</script><main>Widget 2</main>`);
-    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: [] } });
+    writeConfig(repoRoot, { ...DEFAULT_CONFIG, site: { name: "Test", hostnames: ["example.test"] } });
 
     const model = await runInspect({ repoRoot });
 
     expect(model.catalogs).toEqual([]);
     const product = model.entities.find((entity) => entity.kind === "product");
     expect(product && "availability" in product ? product.availability : undefined).toMatchObject({ value: "https://schema.org/InStock", freshness: { class: "unknown" } });
+    expect(product && "canonicalPageUrl" in product ? product.canonicalPageUrl : undefined).toBeNull();
   });
 
   it("createsStaticJsonLdCatalogOnlyWhenOwnerConfigured", async () => {

@@ -147,4 +147,25 @@ describe("declared OpenAPI catalog binding", () => {
       { url: "https://api.example.test/v1/parts/1", method: "GET", redirect: "error", accept: "application/json" },
     ]);
   });
+
+  it("rejects a detail response whose declared identity differs from the requested ID", async () => {
+    await inspect(apiSpec());
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ id: "2", name: "Different part" }), {
+      status: 200, headers: { "content-type": "application/json" },
+    })));
+
+    const provider = await bindOpenApiCatalogProvider(repoRoot, loadConfig(repoRoot), "parts");
+    await expect(provider.getById("1")).resolves.toBeNull();
+  });
+
+  it("rejects dot-segment detail IDs before making a request", async () => {
+    await inspect(apiSpec());
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = await bindOpenApiCatalogProvider(repoRoot, loadConfig(repoRoot), "parts");
+    await expect(provider.getById("..")).resolves.toBeNull();
+    await expect(provider.getById(".")).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

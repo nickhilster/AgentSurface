@@ -7,15 +7,19 @@ export function searchCatalog(items, params = new URLSearchParams()) {
   const query = params.get("q")?.trim().toLocaleLowerCase() ?? "";
   const make = params.get("make")?.trim().toLocaleLowerCase() ?? "";
   const model = params.get("model")?.trim().toLocaleLowerCase() ?? "";
-  const parsedMaxPrice = Number(params.get("maxPrice"));
-  const maxPrice = params.has("maxPrice") && Number.isFinite(parsedMaxPrice) ? parsedMaxPrice : null;
+  const rawMaxPrice = params.get("maxPrice")?.trim() ?? "";
+  const parsedMaxPrice = rawMaxPrice ? Number(rawMaxPrice) : null;
+  const invalidFilters = rawMaxPrice && (parsedMaxPrice === null || !Number.isFinite(parsedMaxPrice) || parsedMaxPrice < 0)
+    ? ["maxPrice"]
+    : [];
+  const maxPrice = invalidFilters.length ? null : parsedMaxPrice;
   const requestedLimit = Number.parseInt(params.get("limit") ?? "", 10);
   const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
     ? Math.min(requestedLimit, MAX_LIMIT)
     : DEFAULT_LIMIT;
   const unsupportedFilters = [...new Set([...params.keys()].filter((key) => !SUPPORTED_FILTERS.has(key)))].sort();
 
-  const filtered = items.filter((item) => {
+  const filtered = invalidFilters.length ? [] : items.filter((item) => {
     if (item.public !== true || !canonicalItemPath(item)) return false;
     if (query && ![item.name, item.make, item.model, item.year, item.trim]
       .some((value) => String(value ?? "").toLocaleLowerCase().includes(query))) return false;
@@ -25,7 +29,7 @@ export function searchCatalog(items, params = new URLSearchParams()) {
     return true;
   });
 
-  return { items: filtered.slice(0, limit), unsupportedFilters };
+  return { items: filtered.slice(0, limit), unsupportedFilters, invalidFilters };
 }
 
 /** Accept only an exact product detail route whose first segment matches the record ID. */
@@ -73,6 +77,7 @@ async function renderDiscovery() {
     if (result.items.length === 0) results.innerHTML = "<p>No matching public products were found.</p>";
     const notices = [];
     if (result.unsupportedFilters.length) notices.push(`Ignored unsupported filters: ${result.unsupportedFilters.map(escapeHtml).join(", ")}.`);
+    if (result.invalidFilters.length) notices.push(`Check these filter values: ${result.invalidFilters.map(escapeHtml).join(", ")}.`);
     status.textContent = `${result.items.length} result${result.items.length === 1 ? "" : "s"}. ${notices.join(" ")}`;
   } catch {
     status.textContent = "The product catalogue could not be loaded.";

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const discovery = await import("./discovery.js").catch(() => null) as null | {
-  searchCatalog?: (items: Array<Record<string, unknown>>, params?: URLSearchParams) => { items: Array<Record<string, unknown>>; unsupportedFilters: string[] };
+  searchCatalog?: (items: Array<Record<string, unknown>>, params?: URLSearchParams) => { items: Array<Record<string, unknown>>; unsupportedFilters: string[]; invalidFilters: string[] };
   canonicalItemPath?: (item: Record<string, unknown>) => string | null;
   escapeHtml?: (value: string) => string;
 };
@@ -23,6 +23,19 @@ describe("static catalogue discovery helpers", () => {
     const result = discovery?.searchCatalog?.(products, new URLSearchParams("q=rav4&make=Toyota&maxPrice=35000"));
     expect(result?.items.map((item) => item.id)).toEqual(["stock-104"]);
     expect(result?.unsupportedFilters).toEqual([]);
+  });
+
+  it("treats a blank submitted budget as no price filter", () => {
+    const keywordOnly = discovery?.searchCatalog?.(products, new URLSearchParams("q=rav4&make=&maxPrice="));
+    const emptyForm = discovery?.searchCatalog?.(products, new URLSearchParams("q=&make=&maxPrice="));
+    expect(keywordOnly?.items.map((item) => item.id)).toEqual(["stock-104"]);
+    expect(emptyForm?.items).toHaveLength(3);
+  });
+
+  it("reports an invalid budget instead of silently removing the price filter", () => {
+    const result = discovery?.searchCatalog?.(products, new URLSearchParams("maxPrice=not-a-price"));
+    expect(result?.items).toEqual([]);
+    expect(result?.invalidFilters).toEqual(["maxPrice"]);
   });
 
   it("excludesNonPublicItems", () => {

@@ -12,7 +12,7 @@ The website's exact item routes are represented by the `canonicalPath` values an
 
 ## Changes and browser flow
 
-The example now has a normal home page, a labeled GET search form at `discover.html`, and five first-party detail pages. The form supports keyword, make, and maximum CAD price. The client also supports an optional model filter and bounded result limit for direct query URLs. Results default to three, cap at five, exclude non-public or invalid-route records, and link directly to the matching detail page. Unsupported query keys are reported while supported filters still apply. Text and attribute values are escaped before result markup is inserted.
+The example now has a normal home page, a labeled GET search form at `discover.html`, and five first-party detail pages. The form supports keyword, make, and maximum CAD price. The client also supports an optional model filter and bounded result limit for direct query URLs. Results default to three, cap at five, exclude non-public or invalid-route records, and link directly to the matching detail page. Unsupported query keys are reported while supported filters still apply. A blank budget is treated as no price filter; malformed non-empty budgets return no results with a validation notice. Text and attribute values are escaped before result markup is inserted.
 
 Representative exact routes:
 
@@ -34,12 +34,13 @@ These results match the guide's stated CLI limits: AgentSurface helps inspect an
 
 ## Verification and limits
 
-- `npm test -- examples/static-catalog-site/discovery.test.ts` — 9 tests passed.
-- `npm test` — 139 tests passed across 22 files.
+- `npm test -- examples/static-catalog-site/discovery.test.ts` — 11 tests passed.
+- `npm test` — 144 tests passed across 22 files.
 - `npm run build` — passed.
 - `npm run typecheck` — passed.
 - `git diff --check` — passed.
 - Served the example with Python's standard static HTTP server; home, discovery, catalogue JSON, and all five product routes returned HTTP 200. Each product response exposed the expected product ID.
+- Opened the GET discovery page in the in-app browser with `?q=rav4&make=&maxPrice=` and confirmed one RAV4 result; opened it with `?q=&make=&maxPrice=` and confirmed the bounded three-result default.
 - Route-to-record identity and canonical metadata were checked by the fixture tests.
 
 The records are static examples, not current vehicles for sale. There is no feed synchronization, freshness guarantee, seller contact, booking, checkout, or real inventory privacy policy to validate. A dynamic website would need to reuse and verify its own authoritative server-side source, permissions, freshness, and canonical route mapping. This dogfood does not demonstrate framework coverage or any agent host's embedded-browser behavior.
