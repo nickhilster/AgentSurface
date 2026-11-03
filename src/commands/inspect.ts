@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadConfig } from "../config.js";
 import { NextAppRouterAdapter } from "../adapters/nextAppRouter.js";
+import { ViteSpaAdapter } from "../adapters/viteSpa.js";
 import { writeModelMeta } from "../lib/modelVersion.js";
 import type { CanonicalSiteModel, FrameworkAdapter } from "../types/model.js";
 
@@ -9,7 +10,7 @@ export interface InspectOptions {
   repoRoot: string;
 }
 
-const ADAPTERS: FrameworkAdapter[] = [new NextAppRouterAdapter()];
+const ADAPTERS: FrameworkAdapter[] = [new NextAppRouterAdapter(), new ViteSpaAdapter()];
 
 export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteModel> {
   const config = loadConfig(opts.repoRoot);
@@ -17,8 +18,9 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
   let bestAdapter: FrameworkAdapter | null = null;
   let bestConfidence = 0;
   let bestFrameworkName = "unknown";
+  const repoContext = { rootDir: opts.repoRoot, excludeRoutes: config.routes.exclude };
   for (const adapter of ADAPTERS) {
-    const detection = await adapter.detect({ rootDir: opts.repoRoot });
+    const detection = await adapter.detect(repoContext);
     if (detection.confidence > bestConfidence) {
       bestAdapter = adapter;
       bestConfidence = detection.confidence;
@@ -27,9 +29,9 @@ export async function runInspect(opts: InspectOptions): Promise<CanonicalSiteMod
   }
 
   const unknowns: string[] = [];
-  const routes = bestAdapter ? await bestAdapter.inspectRoutes({ rootDir: opts.repoRoot }) : [];
+  const routes = bestAdapter ? await bestAdapter.inspectRoutes(repoContext) : [];
   const capabilities = bestAdapter?.inspectCapabilities
-    ? await bestAdapter.inspectCapabilities({ rootDir: opts.repoRoot })
+    ? await bestAdapter.inspectCapabilities(repoContext)
     : [];
 
   if (!bestAdapter) {

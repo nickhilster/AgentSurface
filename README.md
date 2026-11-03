@@ -2,6 +2,8 @@
 
 AgentSurface adds an agent-facing interface layer to an existing website repository without replacing the human-facing site.
 
+The current dogfood adapters cover Next.js App Router sites and Vite React SPAs with explicit standalone route maps.
+
 The project inspects a website repo, builds a trustworthy machine-readable model of what the site actually contains, generates agent-readable surfaces, advertises those surfaces for discovery, and validates them against the source so they do not silently drift.
 
 ## Why this exists

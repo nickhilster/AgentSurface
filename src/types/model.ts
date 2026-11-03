@@ -110,6 +110,8 @@ export interface RepoContext {
   rootDir: string;
   /** Absolute paths to exclude from inspection entirely (e.g. other apps within a monorepo-style repo). */
   excludeDirs?: string[];
+  /** Route path prefixes to exclude from adapter inspection, supplied by config. */
+  excludeRoutes?: string[];
 }
 
 /**

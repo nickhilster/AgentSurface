@@ -93,6 +93,13 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
     const outFile = routePathToGeneratedFile(generatedDir, route.path);
     const content = ownershipHeader(".agentsurface/model/routes.json") + markdown + "\n";
 
+    const publicOutFile = routePathToPublicFile(opts.repoRoot, config.output.dir, route.path);
+    const publicWriteResult = writeOwned(publicOutFile, content, config.ownership.overwriteHumanOwned);
+    if (publicWriteResult.conflict) {
+      result.skipped.push({ path: route.path, reason: `${publicOutFile} exists and is not AgentSurface-owned; refusing to overwrite`, fatal: false });
+      continue;
+    }
+
     const writeResult = writeOwned(outFile, content, config.ownership.overwriteHumanOwned);
     if (writeResult.conflict) {
       result.skipped.push({ path: route.path, reason: `${outFile} exists and is not AgentSurface-owned; refusing to overwrite`, fatal: false });
@@ -118,6 +125,11 @@ export async function runGenerate(opts: GenerateOptions): Promise<GenerateResult
 function routePathToGeneratedFile(generatedDir: string, routePath: string): string {
   const clean = routePath === "/" ? "/index" : routePath;
   return join(generatedDir, clean + ".md");
+}
+
+function routePathToPublicFile(repoRoot: string, outputDir: string, routePath: string): string {
+  const clean = routePath === "/" ? "/index" : routePath;
+  return join(repoRoot, outputDir, clean + ".md");
 }
 
 function generateLlmsTxt(

@@ -88,6 +88,7 @@ describe("runGenerate", () => {
     await runGenerate({ repoRoot, serverBaseUrl: "http://localhost:3000" });
 
     const llmsTxt = readFileSync(join(repoRoot, "public", "llms.txt"), "utf-8");
+    expect(existsSync(join(repoRoot, "public", "about.md"))).toBe(true);
     expect(llmsTxt).not.toContain("/api/values");
     expect(llmsTxt).not.toContain("## Structured data");
   });

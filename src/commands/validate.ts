@@ -100,7 +100,7 @@ export async function runValidate(opts: ValidateOptions): Promise<ValidateResult
     for (const ref of mdRefs) {
       checkedDiscoveryLinks++;
       const relFile = ref === "/index.md" ? "index.md" : ref.replace(/^\//, "");
-      const abs = join(generatedDir, relFile);
+      const abs = join(opts.repoRoot, config.output.dir, relFile);
       if (!existsSync(abs)) {
         failures.push({
           check: "discovery-integrity",

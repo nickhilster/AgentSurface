@@ -34,7 +34,7 @@
 - [x] Add generated-file ownership metadata
 - [ ] Add structured validation reports (current output is human-readable console
       text, not a structured JSON/machine-readable report)
-- [ ] Add second framework adapter
+- [x] Add second framework adapter (Vite React SPA with explicit standalone route maps)
 - [ ] Dogfood on a second structurally different site (portfolio-website — planned as
       a separate follow-up pass, not started)
 

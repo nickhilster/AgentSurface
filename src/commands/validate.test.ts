@@ -67,7 +67,11 @@ describe("runValidate", () => {
     mkdirSync(generatedDir, { recursive: true });
     const file = join(generatedDir, (routePath === "/" ? "/index" : routePath) + ".md");
     mkdirSync(join(file, ".."), { recursive: true });
-    writeFileSync(file, ownershipHeader(".agentsurface/model/routes.json") + markdownBody + "\n", "utf-8");
+    const content = ownershipHeader(".agentsurface/model/routes.json") + markdownBody + "\n";
+    writeFileSync(file, content, "utf-8");
+    const publicFile = join(repoRoot, "public", (routePath === "/" ? "/index" : routePath) + ".md");
+    mkdirSync(join(publicFile, ".."), { recursive: true });
+    writeFileSync(publicFile, content, "utf-8");
   }
 
   function setUpLlmsTxt(content: string) {
